@@ -1,0 +1,224 @@
+local DUNGEON_TIERS = {
+    { 10, "Myth",     "#ff8000" },
+    {  7, "Hero",     "#0070dd" },
+    {  4, "Champion", "#f1c232" },
+    {  2, "Veteran",  "#1eff00" },
+    {  0, "Follower", "#b7b7b7" },
+}
+
+local RAID_DIFF = {
+    [14] = { "Normal",  "#1eff00" },
+    [15] = { "Heroic",  "#0070dd" },
+    [16] = { "Mythic",  "#ff8000" },
+    [17] = { "LFR",     "#b7b7b7" },
+}
+
+local DIFF_RANK = { [17]=1, [14]=2, [15]=3, [16]=4 }
+
+local function GetDungeonTier(level)
+    level = level or 0
+    for _, t in ipairs(DUNGEON_TIERS) do
+        if level >= t[1] then return t[2], t[3] end
+    end
+    return "Follower", "#b7b7b7"
+end
+
+local function GetRaidDiffName(difficultyId)
+    local d = RAID_DIFF[difficultyId]
+    if d then return d[1], d[2] end
+    return "Normal", "#1eff00"
+end
+
+MR:RegisterModule({
+    key         = "great_vault",
+    label       = "Great Vault",
+    labelColor  = "#ff8000",
+    resetType   = "weekly",
+    defaultOpen = true,
+
+    onScan = function(mod)
+        if not C_WeeklyRewards or not C_WeeklyRewards.GetActivities then return end
+        local activities = C_WeeklyRewards.GetActivities()
+        if not activities then return end
+
+        local db = MidnightRoutineDB.progress
+        if not db[mod.key] then db[mod.key] = {} end
+        local vd = db[mod.key]
+
+        vd["vault_d_progress"]  = 0
+        vd["vault_d_max_level"] = 0
+        vd["vault_r_progress"]  = 0
+        vd["vault_r_diff_id"]   = 14
+        vd["vault_w_progress"]  = 0
+
+        for _, act in ipairs(activities) do
+            if act.type == 1 then
+
+                vd["vault_d_progress"] = act.progress or 0
+                if (act.level or 0) > (vd["vault_d_max_level"] or 0) then
+                    vd["vault_d_max_level"] = act.level or 0
+                end
+            elseif act.type == 3 then
+
+                vd["vault_r_progress"] = act.progress or 0
+                local newRank = DIFF_RANK[act.difficultyId] or 2
+                local curRank = DIFF_RANK[vd["vault_r_diff_id"]] or 2
+                if newRank > curRank then
+                    vd["vault_r_diff_id"] = act.difficultyId
+                end
+            elseif act.type == 4 then
+
+                vd["vault_w_progress"] = act.progress or 0
+            end
+        end
+
+        local tierLabel, tierColor = GetDungeonTier(vd["vault_d_max_level"])
+        vd["vault_d_tier_label"] = tierLabel
+        vd["vault_d_tier_color"] = tierColor
+
+        local raidName, raidColor = GetRaidDiffName(vd["vault_r_diff_id"])
+        vd["vault_r_diff_label"] = raidName
+        vd["vault_r_diff_color"] = raidColor
+    end,
+
+    rows = {
+
+        {
+            key              = "vault_r2",
+            label            = "|cffff8000Raid ×2 Bosses:|r",
+            max              = 2,
+            vaultLabel       = "Normal",
+            vaultColor       = "#1eff00",
+            note             = "Defeat 2 Manaforge Omega Bosses",
+            liveKey          = "vault_r_progress",
+            liveTierLabelKey = "vault_r_diff_label",
+            liveTierColorKey = "vault_r_diff_color",
+        },
+        {
+            key              = "vault_r4",
+            label            = "|cffff8000Raid ×4 Bosses:|r",
+            max              = 4,
+            vaultLabel       = "Heroic",
+            vaultColor       = "#0070dd",
+            note             = "Defeat 4 Manaforge Omega Bosses",
+            liveKey          = "vault_r_progress",
+            liveTierLabelKey = "vault_r_diff_label",
+            liveTierColorKey = "vault_r_diff_color",
+        },
+        {
+            key              = "vault_r6",
+            label            = "|cffff8000Raid ×6 Bosses:|r",
+            max              = 6,
+            vaultLabel       = "Mythic",
+            vaultColor       = "#ff8000",
+            note             = "Defeat 6 Manaforge Omega Bosses",
+            liveKey          = "vault_r_progress",
+            liveTierLabelKey = "vault_r_diff_label",
+            liveTierColorKey = "vault_r_diff_color",
+        },
+
+        {
+            key              = "vault_d1",
+            label            = "|cff00ccffDungeon ×1:|r",
+            max              = 1,
+            vaultLabel       = "Veteran",
+            vaultColor       = "#1eff00",
+            note             = "Complete 1 Heroic, Mythic, or Timewalking Dungeon",
+            liveKey          = "vault_d_progress",
+            liveTierLabelKey = "vault_d_tier_label",
+            liveTierColorKey = "vault_d_tier_color",
+        },
+        {
+            key              = "vault_d4",
+            label            = "|cff00ccffDungeon ×4:|r",
+            max              = 4,
+            vaultLabel       = "Champion",
+            vaultColor       = "#f1c232",
+            note             = "Complete 4 Heroic, Mythic, or Timewalking Dungeons",
+            liveKey          = "vault_d_progress",
+            liveTierLabelKey = "vault_d_tier_label",
+            liveTierColorKey = "vault_d_tier_color",
+        },
+        {
+            key              = "vault_d8",
+            label            = "|cff00ccffDungeon ×8:|r",
+            max              = 8,
+            vaultLabel       = "Hero",
+            vaultColor       = "#0070dd",
+            note             = "Complete 8 Heroic, Mythic, or Timewalking Dungeons",
+            liveKey          = "vault_d_progress",
+            liveTierLabelKey = "vault_d_tier_label",
+            liveTierColorKey = "vault_d_tier_color",
+        },
+
+        {
+            key        = "vault_w2",
+            label      = "|cffc8956cWorld ×2:|r",
+            max        = 2,
+            vaultLabel = "Adventurer",
+            vaultColor = "#b7b7b7",
+            note       = "Complete 2 Delves or World Activities",
+            liveKey    = "vault_w_progress",
+        },
+        {
+            key        = "vault_w4",
+            label      = "|cffc8956cWorld ×4:|r",
+            max        = 4,
+            vaultLabel = "Champion",
+            vaultColor = "#f1c232",
+            note       = "Complete 4 Delves or World Activities",
+            liveKey    = "vault_w_progress",
+        },
+        {
+            key        = "vault_w8",
+            label      = "|cffc8956cWorld ×8:|r",
+            max        = 8,
+            vaultLabel = "Hero",
+            vaultColor = "#0070dd",
+            note       = "Complete 8 Delves or World Activities",
+            liveKey    = "vault_w_progress",
+        },
+    },
+})
+
+local _origScan = MR.ScanQuests
+MR.ScanQuests = function(self)
+    _origScan(self)
+
+    for _, mod in ipairs(self.modules) do
+        if mod.onScan then mod.onScan(mod) end
+    end
+
+    local db = MidnightRoutineDB.progress
+    for _, mod in ipairs(self.modules) do
+        local mdb = db[mod.key]
+        if mdb then
+            for _, row in ipairs(mod.rows) do
+                if row.liveKey and mdb[row.liveKey] then
+                    mdb[row.key] = math.min(mdb[row.liveKey], row.max)
+                end
+                if row.liveTierLabelKey and mdb[row.liveTierLabelKey] then
+                    row.vaultLabel = mdb[row.liveTierLabelKey]
+                end
+                if row.liveTierColorKey and mdb[row.liveTierColorKey] then
+                    row.vaultColor = mdb[row.liveTierColorKey]
+                end
+            end
+        end
+    end
+
+    self:RefreshUI()
+end
+
+local vaultEvents = CreateFrame("Frame")
+vaultEvents:RegisterEvent("CHALLENGE_MODE_COMPLETED")
+vaultEvents:RegisterEvent("ENCOUNTER_END")
+vaultEvents:RegisterEvent("WEEKLY_REWARDS_UPDATE")
+
+vaultEvents:SetScript("OnEvent", function(_, event, ...)
+    if event == "ENCOUNTER_END" then
+        local success = select(5, ...)
+        if success ~= 1 then return end
+    end
+    C_Timer.After(1.5, function() MR:ScanQuests() end)
+end)
