@@ -10,6 +10,7 @@ local DEFAULTS = {
     moduleOrder     = {},
     transparentMode = false,
     width           = 260,
+    fontSize        = 11,
 }
 
 MR.modules = {}
@@ -279,3 +280,19 @@ bootstrap:SetScript("OnEvent", function(self, event, arg1)
         MR:ScanQuests()
     end
 end)
+
+function MR:IsRowEnabled(modKey, rowKey)
+    local s = MidnightRoutineDB.modules[modKey]
+    if s and s.hiddenRows and s.hiddenRows[rowKey] == false then return false end
+    return true
+end
+
+function MR:SetRowEnabled(modKey, rowKey, enabled)
+    if not MidnightRoutineDB.modules[modKey] then MidnightRoutineDB.modules[modKey] = {} end
+    if not MidnightRoutineDB.modules[modKey].hiddenRows then MidnightRoutineDB.modules[modKey].hiddenRows = {} end
+    if enabled then
+        MidnightRoutineDB.modules[modKey].hiddenRows[rowKey] = nil
+    else
+        MidnightRoutineDB.modules[modKey].hiddenRows[rowKey] = false
+    end
+end

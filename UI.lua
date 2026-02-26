@@ -1,12 +1,30 @@
 local PANEL_MIN_WIDTH = 200
 local PANEL_MAX_WIDTH = 500
-local ROW_HEIGHT      = 18
-local HEADER_HEIGHT   = 18
-local PADDING         = 6
 local FONT_ROWS       = "Fonts\\FRIZQT__.TTF"
 local FONT_HEADERS    = "Fonts\\FRIZQT__.TTF"
 local TEX_GEAR        = "Interface\\GossipFrame\\DailyActiveQuestIcon"
 local TEX_LOCK        = "Interface\\PaperDollInfoFrame\\UI-GearManager-LeatherLoop"
+
+local FONT_SIZE_MIN = 7
+local FONT_SIZE_MAX = 20
+
+local ROW_HEIGHT    = 18
+local HEADER_HEIGHT = 18
+local PADDING       = 6
+
+local function GetFontSize()
+    if MidnightRoutineDB and MidnightRoutineDB.fontSize then
+        return MidnightRoutineDB.fontSize
+    end
+    return 11
+end
+
+local function RecalcLayout()
+    local fs = GetFontSize()
+    ROW_HEIGHT    = math.max(14, fs + 7)
+    HEADER_HEIGHT = math.max(14, fs + 7)
+    PADDING       = math.max(4, math.floor(fs * 0.55))
+end
 
 local function hex(h)
     h = h:gsub("#","")
@@ -47,6 +65,14 @@ local function ApplyWidth(newW)
     MR:RefreshUI()
 end
 MR.ApplyWidth = ApplyWidth
+
+local function ApplyFontSize(newSize)
+    newSize = math.max(FONT_SIZE_MIN, math.min(FONT_SIZE_MAX, math.floor(newSize)))
+    MidnightRoutineDB.fontSize = newSize
+    RecalcLayout()
+    MR:RefreshUI()
+end
+MR.ApplyFontSize = ApplyFontSize
 
 local function WC(rrggbb, text)
     return string.format("|cff%s%s|r", rrggbb, text)
@@ -197,6 +223,7 @@ end
 function MR:BuildUI()
     if self.frame then self.frame:Show() return end
 
+    RecalcLayout()
     local w = MidnightRoutineDB.width or 260
 
     local f = CreateFrame("Frame", "MidnightRoutineFrame", UIParent, "BackdropTemplate")
@@ -222,8 +249,10 @@ function MR:BuildUI()
     f:SetScale(MidnightRoutineDB.scale or 1)
     self.frame = f
 
+    local HEADER_H = 24
+
     local scrollBg = f:CreateTexture(nil, "BACKGROUND")
-    scrollBg:SetPoint("TOPLEFT",     f, "TOPLEFT",     0, -20)
+    scrollBg:SetPoint("TOPLEFT",     f, "TOPLEFT",     0, -HEADER_H)
     scrollBg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0,   0)
     scrollBg:SetColorTexture(COL.bg[1], COL.bg[2], COL.bg[3], 0.96)
     MR._scrollBg = scrollBg
@@ -232,9 +261,10 @@ function MR:BuildUI()
     MR._titleBar = titleBar
     titleBar:SetPoint("TOPLEFT")
     titleBar:SetPoint("TOPRIGHT")
-    titleBar:SetHeight(20)
-    titleBar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
-    titleBar:SetBackdropColor(0.05, 0.12, 0.22, 1)
+    titleBar:SetHeight(HEADER_H)
+    titleBar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    titleBar:SetBackdropColor(0.04, 0.10, 0.20, 1)
+    titleBar:SetBackdropBorderColor(0.10, 0.28, 0.35, 1)
     titleBar:EnableMouse(true)
     titleBar:RegisterForDrag("LeftButton")
     titleBar:SetScript("OnDragStart", function()
@@ -246,58 +276,108 @@ function MR:BuildUI()
         MidnightRoutineDB.position = { point = pt, relPoint = rp, x = x, y = y }
     end)
 
+    local titleAccent = titleBar:CreateTexture(nil, "ARTWORK")
+    titleAccent:SetPoint("TOPLEFT",    titleBar, "TOPLEFT",    0, 0)
+    titleAccent:SetPoint("BOTTOMLEFT", titleBar, "BOTTOMLEFT", 0, 0)
+    titleAccent:SetWidth(3)
+    titleAccent:SetColorTexture(0.16, 0.78, 0.75, 1)
+
     local title = titleBar:CreateFontString(nil, "OVERLAY")
-    title:SetFont(FONT_HEADERS, 11, "OUTLINE")
-    title:SetPoint("LEFT", titleBar, "LEFT", 6, 0)
-    title:SetText("|cff2ae7c6* Midnight Routine|r")
+    title:SetFont(FONT_HEADERS, math.max(9, GetFontSize()), "OUTLINE")
+    title:SetPoint("LEFT", titleBar, "LEFT", 10, 0)
+    title:SetText("|cff2ae7c6Midnight Routine|r")
 
     local titleCount = titleBar:CreateFontString(nil, "OVERLAY")
-    titleCount:SetFont(FONT_ROWS, 10, "OUTLINE")
-    titleCount:SetPoint("RIGHT", titleBar, "RIGHT", -42, 0)
-    titleCount:SetTextColor(0.4, 0.4, 0.4)
+    titleCount:SetFont(FONT_ROWS, math.max(8, GetFontSize() - 1), "OUTLINE")
+    titleCount:SetTextColor(0.45, 0.55, 0.55)
     self.titleCount = titleCount
 
-    local cfgBtn = CreateFrame("Button", nil, titleBar)
-    cfgBtn:SetSize(16, 16)
-    cfgBtn:SetPoint("RIGHT", titleBar, "RIGHT", -22, 0)
-    cfgBtn:SetNormalTexture(TEX_GEAR)
-    cfgBtn:SetScript("OnClick", function() MR:ToggleConfig() end)
-    cfgBtn:SetScript("OnEnter", function(s)
-        GameTooltip:SetOwner(s, "ANCHOR_LEFT")
-        GameTooltip:SetText("Click for Options", 1, 1, 1)
-        GameTooltip:AddLine("/mr for chat commands", 0.7, 0.7, 0.7)
-        GameTooltip:Show()
-    end)
-    cfgBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    local BTN_SIZE   = 16
+    local BTN_PAD    = 3
+    local BTN_MARGIN = 4
 
-    local minBtn = CreateFrame("Button", nil, titleBar, "BackdropTemplate")
-    minBtn:SetSize(16, 14)
-    minBtn:SetPoint("RIGHT", titleBar, "RIGHT", -3, 0)
-    minBtn:SetBackdrop({
-        bgFile   = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
-    minBtn:SetBackdropColor(0.08, 0.22, 0.32, 0.9)
-    minBtn:SetBackdropBorderColor(0.18, 0.65, 0.62, 0.8)
+    local function MakeHeaderBtn(icon, normalColor, hoverBg, hoverBorder, tooltipText, tooltipSub)
+        local btn = CreateFrame("Button", nil, titleBar, "BackdropTemplate")
+        btn:SetSize(BTN_SIZE, BTN_SIZE)
+        btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+        btn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
+        btn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
+
+        local iconObj  
+        if icon.tex then
+            local t = btn:CreateTexture(nil, "OVERLAY")
+            t:SetSize(BTN_SIZE - 2, BTN_SIZE - 2)
+            t:SetPoint("CENTER", btn, "CENTER", 0, 0)
+            t:SetTexture(icon.tex)
+            t:SetVertexColor(normalColor[1], normalColor[2], normalColor[3])
+            iconObj = t
+            btn._iconTex = t
+        else
+            local lbl = btn:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(FONT_HEADERS, 12, "OUTLINE")
+            lbl:SetPoint("CENTER", btn, "CENTER", 0, 1)
+            lbl:SetText(icon.text)
+            lbl:SetTextColor(normalColor[1], normalColor[2], normalColor[3])
+            iconObj = lbl
+            btn._lbl = lbl
+        end
+
+        btn._normalColor = normalColor
+        btn._iconObj     = iconObj
+        btn._isTexture   = (icon.tex ~= nil)
+
+        btn:SetScript("OnEnter", function(s)
+            btn:SetBackdropColor(hoverBg[1], hoverBg[2], hoverBg[3], 1)
+            btn:SetBackdropBorderColor(hoverBorder[1], hoverBorder[2], hoverBorder[3], 1)
+            if btn._isTexture then
+                btn._iconObj:SetVertexColor(1, 1, 1)
+            else
+                btn._iconObj:SetTextColor(1, 1, 1)
+            end
+            if tooltipText then
+                GameTooltip:SetOwner(s, "ANCHOR_BOTTOM")
+                GameTooltip:SetText(tooltipText, 1, 1, 1)
+                if tooltipSub then GameTooltip:AddLine(tooltipSub, 0.6, 0.6, 0.6) end
+                GameTooltip:Show()
+            end
+        end)
+        btn:SetScript("OnLeave", function()
+            btn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
+            btn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
+            if btn._isTexture then
+                btn._iconObj:SetVertexColor(normalColor[1], normalColor[2], normalColor[3])
+            else
+                btn._iconObj:SetTextColor(normalColor[1], normalColor[2], normalColor[3])
+            end
+            GameTooltip:Hide()
+        end)
+        return btn
+    end
+
+    local closeBtn = MakeHeaderBtn(
+        { text = "x" },
+        {0.75, 0.28, 0.28},
+        {0.35, 0.06, 0.06},
+        {0.90, 0.25, 0.25},
+        "Close",
+        "Hide Midnight Routine"
+    )
+    closeBtn:SetPoint("RIGHT", titleBar, "RIGHT", -BTN_MARGIN, 0)
+    closeBtn:SetScript("OnClick", function() f:Hide() end)
+
+    local minBtn = MakeHeaderBtn(
+        { text = "-" },
+        {0.25, 0.80, 0.68},
+        {0.06, 0.22, 0.28},
+        {0.20, 0.80, 0.65},
+        "Minimize",
+        "Collapse to header bar"
+    )
+    minBtn:SetPoint("RIGHT", closeBtn, "LEFT", -BTN_PAD, 0)
     self.minBtn = minBtn
 
-    local minLabel = minBtn:CreateFontString(nil, "OVERLAY")
-    minLabel:SetFont(FONT_HEADERS, 13, "OUTLINE")
-    minLabel:SetPoint("CENTER", minBtn, "CENTER", 0, 1)
-    minLabel:SetText("-")
-    minLabel:SetTextColor(0.25, 0.90, 0.75)
-
     local function UpdateMinimizeVisual()
-        if MidnightRoutineDB.minimized then
-            minLabel:SetText("+")
-            minLabel:SetTextColor(0.25, 0.90, 0.75)
-            minBtn:SetBackdropBorderColor(0.18, 0.65, 0.62, 0.8)
-        else
-            minLabel:SetText("-")
-            minLabel:SetTextColor(0.25, 0.90, 0.75)
-            minBtn:SetBackdropBorderColor(0.18, 0.65, 0.62, 0.8)
-        end
+        minBtn._lbl:SetText(MidnightRoutineDB.minimized and "+" or "-")
     end
     UpdateMinimizeVisual()
     self.UpdateMinimizeVisual = UpdateMinimizeVisual
@@ -307,7 +387,7 @@ function MR:BuildUI()
             if MR.scroll       then MR.scroll:Hide()       end
             if MR._scrollBg    then MR._scrollBg:Hide()    end
             if MR._scrollTrack then MR._scrollTrack:Hide() end
-            f:SetHeight(20)
+            f:SetHeight(HEADER_H)
         else
             if MR.scroll       then MR.scroll:Show()       end
             if MR._scrollBg    then MR._scrollBg:Show()    end
@@ -322,26 +402,19 @@ function MR:BuildUI()
         MidnightRoutineDB.minimized = not MidnightRoutineDB.minimized
         ApplyMinimizeState()
     end)
-    minBtn:SetScript("OnEnter", function(s)
-        minBtn:SetBackdropColor(0.12, 0.38, 0.45, 1)
-        minBtn:SetBackdropBorderColor(0.25, 0.90, 0.75, 1)
-        minLabel:SetTextColor(1, 1, 1)
-        GameTooltip:SetOwner(s, "ANCHOR_LEFT")
-        if MidnightRoutineDB.minimized then
-            GameTooltip:SetText("|cff00ff96Minimized|r")
-            GameTooltip:AddLine("Click to restore.", 0.7, 0.7, 0.7)
-        else
-            GameTooltip:SetText("|cffaaaaааMinimize|r")
-            GameTooltip:AddLine("Click to collapse to header.", 0.7, 0.7, 0.7)
-        end
-        GameTooltip:Show()
-    end)
-    minBtn:SetScript("OnLeave", function()
-        minBtn:SetBackdropColor(0.08, 0.22, 0.32, 0.9)
-        minBtn:SetBackdropBorderColor(0.18, 0.65, 0.62, 0.8)
-        minLabel:SetTextColor(0.25, 0.90, 0.75)
-        GameTooltip:Hide()
-    end)
+
+    local cfgBtn = MakeHeaderBtn(
+        { tex = "Interface\\GossipFrame\\DailyActiveQuestIcon" },
+        {0.85, 0.65, 0.20},
+        {0.18, 0.13, 0.03},
+        {0.95, 0.72, 0.18},
+        "Options",
+        "/mr for chat commands"
+    )
+    cfgBtn:SetPoint("RIGHT", minBtn, "LEFT", -BTN_PAD, 0)
+    cfgBtn:SetScript("OnClick", function() MR:ToggleConfig() end)
+
+    titleCount:SetPoint("RIGHT", cfgBtn, "LEFT", -6, 0)
 
     local scroll = CreateFrame("ScrollFrame", "MRScrollFrame", f)
     scroll:SetPoint("TOPLEFT",     titleBar, "BOTTOMLEFT",  0,  -1)
@@ -403,6 +476,8 @@ end
 function MR:RefreshUI()
     if not self.frame then return end
 
+    RecalcLayout()
+
     for _, w in ipairs(self.widgets or {}) do
         w:Hide(); w:SetParent(nil)
     end
@@ -417,8 +492,10 @@ function MR:RefreshUI()
         if MR:IsModuleEnabled(mod.key) and modVisible then
             yOff = self:BuildSection(mod, yOff)
             for _, row in ipairs(mod.rows) do
-                allTotal = allTotal + 1
-                if MR:GetProgress(mod.key, row.key) >= row.max then allDone = allDone + 1 end
+                if MR:IsRowEnabled(mod.key, row.key) then
+                    allTotal = allTotal + 1
+                    if MR:GetProgress(mod.key, row.key) >= row.max then allDone = allDone + 1 end
+                end
             end
         end
     end
@@ -427,16 +504,23 @@ function MR:RefreshUI()
     self.titleCount:SetTextColor(countColor(allDone, allTotal))
 
     self.content:SetHeight(math.max(yOff, 1))
-    self.frame:SetHeight(math.max(math.min(20 + yOff + 6, 600), 26))
+    self.frame:SetHeight(math.max(math.min(24 + yOff + 6, 600), 30))
+
+    if self.scroll then
+        local maxScroll = math.max(math.max(yOff, 1) - self.scroll:GetHeight(), 0)
+        local cur = self.scroll:GetVerticalScroll()
+        if cur > maxScroll then
+            self.scroll:SetVerticalScroll(maxScroll)
+        end
+    end
 
     if self.UpdateScrollBar then self.UpdateScrollBar() end
 
-    -- Re-apply minimized state after a refresh
     if MidnightRoutineDB.minimized then
         if self.scroll       then self.scroll:Hide()       end
         if self._scrollBg    then self._scrollBg:Hide()    end
         if self._scrollTrack then self._scrollTrack:Hide() end
-        self.frame:SetHeight(20)
+        self.frame:SetHeight(24)
         if self.UpdateMinimizeVisual then self.UpdateMinimizeVisual() end
     end
 end
@@ -475,14 +559,14 @@ function MR:BuildSection(mod, yOff)
     end
 
     local lbl = hdrFrame:CreateFontString(nil, "OVERLAY")
-    lbl:SetFont(FONT_HEADERS, 10, "OUTLINE")
+    lbl:SetFont(FONT_HEADERS, GetFontSize(), "OUTLINE")
     lbl:SetPoint("LEFT", hdrFrame, "LEFT", 8, 0)
     lbl:SetText(allDone
         and WC("00ff96", mod.label)
         or  WC((mod.labelColor or "#ffffff"):gsub("#",""), mod.label))
 
     local cnt = hdrFrame:CreateFontString(nil, "OVERLAY")
-    cnt:SetFont(FONT_ROWS, 9, "OUTLINE")
+    cnt:SetFont(FONT_ROWS, math.max(7, GetFontSize() - 2), "OUTLINE")
     cnt:SetPoint("RIGHT", hdrFrame, "RIGHT", -18, 0)
     cnt:SetText(string.format("%d/%d", secDone, secTotal))
     cnt:SetTextColor(countColor(secDone, secTotal))
@@ -498,7 +582,7 @@ function MR:BuildSection(mod, yOff)
     arrow:SetVertexColor(0.45, 0.45, 0.45)
 
     local gripTip = hdrFrame:CreateFontString(nil, "OVERLAY")
-    gripTip:SetFont(FONT_ROWS, 7, "OUTLINE")
+    gripTip:SetFont(FONT_ROWS, math.max(6, GetFontSize() - 4), "OUTLINE")
     gripTip:SetPoint("LEFT", hdrFrame, "LEFT", 2, 0)
     gripTip:SetText("||")
     gripTip:SetTextColor(0.2, 0.2, 0.25)
@@ -548,9 +632,11 @@ function MR:BuildSection(mod, yOff)
 
     if isOpen then
         for _, row in ipairs(mod.rows) do
-            local done = MR:GetProgress(mod.key, row.key)
-            if not (MidnightRoutineDB.hideComplete and done >= row.max) then
-                yOff = self:BuildRow(mod, row, done, yOff)
+            if MR:IsRowEnabled(mod.key, row.key) then
+                local done = MR:GetProgress(mod.key, row.key)
+                if not (MidnightRoutineDB.hideComplete and done >= row.max) then
+                    yOff = self:BuildRow(mod, row, done, yOff)
+                end
             end
         end
     end
@@ -635,7 +721,7 @@ function MR:BuildRow(mod, row, done, yOff)
     end
 
     local lbl = rowFrame:CreateFontString(nil, "OVERLAY")
-    lbl:SetFont(FONT_ROWS, 11, "OUTLINE")
+    lbl:SetFont(FONT_ROWS, GetFontSize(), "OUTLINE")
     lbl:SetPoint("LEFT",  rowFrame, "LEFT",  PADDING + 10, 0)
     lbl:SetPoint("RIGHT", rowFrame, "RIGHT", -52, 0)
     lbl:SetJustifyH("LEFT")
@@ -643,7 +729,7 @@ function MR:BuildRow(mod, row, done, yOff)
     if isComplete then lbl:SetTextColor(0.38, 0.38, 0.38) end
 
     local countFS = rowFrame:CreateFontString(nil, "OVERLAY")
-    countFS:SetFont(FONT_ROWS, 11, "OUTLINE")
+    countFS:SetFont(FONT_ROWS, GetFontSize(), "OUTLINE")
     countFS:SetPoint("RIGHT", rowFrame, "RIGHT", -4, 0)
     countFS:SetJustifyH("RIGHT")
     countFS:SetText(string.format("%d / %d", done, row.max))
@@ -651,7 +737,7 @@ function MR:BuildRow(mod, row, done, yOff)
 
     if row.vaultLabel then
         local vl = rowFrame:CreateFontString(nil, "OVERLAY")
-        vl:SetFont(FONT_ROWS, 9, "OUTLINE")
+        vl:SetFont(FONT_ROWS, math.max(7, GetFontSize() - 2), "OUTLINE")
         vl:SetPoint("RIGHT", countFS, "LEFT", -4, 0)
         vl:SetText(row.vaultLabel)
         vl:SetTextColor(hex(row.vaultColor or "#ffffff"))
@@ -716,6 +802,11 @@ end
 
 function MR:PopulateConfigFrame(f)
     if f.body then
+        local children = { f.body:GetChildren() }
+        for _, child in ipairs(children) do
+            child:Hide()
+            child:EnableMouse(false)
+        end
         f.body:Hide()
         f.body:SetParent(nil)
         f.body = nil
@@ -769,11 +860,28 @@ function MR:PopulateConfigFrame(f)
     end
 
     local function Btn(label, onClick)
-        local btn = CreateFrame("Button", nil, body, "UIPanelButtonTemplate")
-        btn:SetSize(192, 22)
+        local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
+        btn:SetSize(192, 20)
         btn:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
-        btn:SetText(label)
+        btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+        btn:SetBackdropColor(0.05, 0.10, 0.18, 1)
+        btn:SetBackdropBorderColor(0.18, 0.40, 0.45, 1)
+        local fs = btn:CreateFontString(nil, "OVERLAY")
+        fs:SetFont(FONT_ROWS, 10, "OUTLINE")
+        fs:SetPoint("CENTER")
+        fs:SetText(label)
+        fs:SetTextColor(0.70, 0.88, 0.85)
         btn:SetScript("OnClick", onClick)
+        btn:SetScript("OnEnter", function()
+            btn:SetBackdropColor(0.08, 0.22, 0.32, 1)
+            btn:SetBackdropBorderColor(0.25, 0.85, 0.72, 1)
+            fs:SetTextColor(1, 1, 1)
+        end)
+        btn:SetScript("OnLeave", function()
+            btn:SetBackdropColor(0.05, 0.10, 0.18, 1)
+            btn:SetBackdropBorderColor(0.18, 0.40, 0.45, 1)
+            fs:SetTextColor(0.70, 0.88, 0.85)
+        end)
         yOff = yOff - 26
     end
 
@@ -786,7 +894,6 @@ function MR:PopulateConfigFrame(f)
         function(v)
             MidnightRoutineDB.locked = v
             MR.frame:SetMovable(not v)
-            -- (lock icon removed; minimize button is now in its place)
         end)
     Checkbox("Transparent Mode",
         function() return MidnightRoutineDB.transparentMode end,
@@ -855,11 +962,109 @@ function MR:PopulateConfigFrame(f)
 
     yOff = yOff - 18
 
+    Gap(6)
+    local fsLabel = body:CreateFontString(nil, "OVERLAY")
+    fsLabel:SetFont(FONT_ROWS, 9, "OUTLINE")
+    fsLabel:SetText("|cff888888FONT SIZE|r")
+    fsLabel:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
+    yOff = yOff - 14
+
+    local fsBg = CreateFrame("Frame", nil, body, "BackdropTemplate")
+    fsBg:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
+    fsBg:SetSize(150, 14)
+    fsBg:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    fsBg:SetBackdropColor(0, 0, 0, 0.5)
+    fsBg:SetBackdropBorderColor(0.25, 0.25, 0.3, 1)
+
+    local fsFill = fsBg:CreateTexture(nil, "ARTWORK")
+    fsFill:SetPoint("LEFT", fsBg, "LEFT", 2, 0)
+    fsFill:SetHeight(10)
+    fsFill:SetColorTexture(0.78, 0.55, 0.16, 0.85)
+
+    local fsValBox = CreateFrame("Frame", nil, body, "BackdropTemplate")
+    fsValBox:SetPoint("LEFT", fsBg, "RIGHT", 5, 0)
+    fsValBox:SetSize(38, 14)
+    fsValBox:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    fsValBox:SetBackdropColor(0, 0, 0, 0.5)
+    fsValBox:SetBackdropBorderColor(0.25, 0.25, 0.3, 1)
+
+    local fsValText = fsValBox:CreateFontString(nil, "OVERLAY")
+    fsValText:SetFont(FONT_ROWS, 9, "OUTLINE")
+    fsValText:SetPoint("CENTER", fsValBox, "CENTER", 0, 0)
+
+    local fsSlider = CreateFrame("Slider", nil, fsBg)
+    fsSlider:SetAllPoints(fsBg)
+    fsSlider:SetMinMaxValues(FONT_SIZE_MIN, FONT_SIZE_MAX)
+    fsSlider:SetValueStep(1)
+    fsSlider:SetObeyStepOnDrag(true)
+    fsSlider:SetOrientation("HORIZONTAL")
+    fsSlider:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+    local fsThumb = fsSlider:GetThumbTexture()
+    if fsThumb then fsThumb:Hide() end
+
+    local function UpdateFsVisual(sz)
+        local pct = (sz - FONT_SIZE_MIN) / (FONT_SIZE_MAX - FONT_SIZE_MIN)
+        fsFill:SetWidth(math.max(2, (fsBg:GetWidth() - 4) * pct))
+        fsValText:SetText(sz)
+    end
+
+    local currentFs = GetFontSize()
+    fsSlider:SetValue(currentFs)
+    UpdateFsVisual(currentFs)
+
+    fsSlider:SetScript("OnValueChanged", function(s, v)
+        v = math.floor(v)
+        UpdateFsVisual(v)
+    end)
+    fsSlider:SetScript("OnMouseUp", function(s)
+        ApplyFontSize(s:GetValue())
+        MR:PopulateConfigFrame(f)
+    end)
+
+    local presetRow = CreateFrame("Frame", nil, body)
+    presetRow:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff - 18)
+    presetRow:SetSize(192, 18)
+
+    local presets = { {"S", 9}, {"M", 11}, {"L", 14}, {"XL", 17} }
+    local btnW = 42
+    for i, p in ipairs(presets) do
+        local pb = CreateFrame("Button", nil, body, "BackdropTemplate")
+        pb:SetSize(btnW - 2, 16)
+        pb:SetPoint("TOPLEFT", body, "TOPLEFT", 8 + (i-1) * btnW, yOff - 18)
+        pb:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+        local isActive = (GetFontSize() == p[2])
+        pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, 1)
+        pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, 1)
+        local pfs = pb:CreateFontString(nil, "OVERLAY")
+        pfs:SetFont(FONT_ROWS, 9, "OUTLINE")
+        pfs:SetPoint("CENTER")
+        pfs:SetText(p[1])
+        pfs:SetTextColor(isActive and 0.2 or 0.6, isActive and 0.95 or 0.75, isActive and 0.75 or 0.65)
+        pb:SetScript("OnClick", function()
+            ApplyFontSize(p[2])
+            MR:PopulateConfigFrame(f)
+        end)
+        pb:SetScript("OnEnter", function()
+            pb:SetBackdropColor(0.10, 0.28, 0.28, 1)
+            pb:SetBackdropBorderColor(0.25, 0.90, 0.75, 1)
+        end)
+        pb:SetScript("OnLeave", function()
+            pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, 1)
+            pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, 1)
+        end)
+    end
+
+    yOff = yOff - 40
+
     Gap(4); Divider()
     SectionLabel("MODULES")
+
+    if not MR._cfgExpanded then MR._cfgExpanded = {} end
+
     for _, mod in ipairs(self.modules) do
         local key = mod.key
         local optVisible = not mod.isVisible or mod:isVisible()
+
         if mod.profSkillLine then
             if MR.playerProfessions[mod.profSkillLine] then
                 local fr = CreateFrame("Frame", nil, body)
@@ -881,24 +1086,146 @@ function MR:PopulateConfigFrame(f)
                 note:SetTextColor(0.4, 0.4, 0.4)
                 yOff = yOff - 22
             end
+
         elseif optVisible then
-            Checkbox(mod.label,
-                function() return MR:IsModuleEnabled(key) end,
-                function(v) MR:SetModuleEnabled(key, v) end,
-                mod.labelColor)
+            local ROW_H = 22
+            local headerFr = CreateFrame("Frame", nil, body)
+            headerFr:SetPoint("TOPLEFT", body, "TOPLEFT", 4, yOff)
+            headerFr:SetSize(196, ROW_H)
+
+            local cb = CreateFrame("CheckButton", nil, headerFr, "UICheckButtonTemplate")
+            cb:SetSize(20, 20)
+            cb:SetPoint("LEFT", headerFr, "LEFT", 0, 0)
+            cb:SetChecked(MR:IsModuleEnabled(key))
+            cb:SetScript("OnClick", function(s)
+                MR:SetModuleEnabled(key, s:GetChecked())
+            end)
+
+            local lbl = headerFr:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(FONT_ROWS, 10, "OUTLINE")
+            lbl:SetPoint("LEFT", cb, "RIGHT", 2, 0)
+            lbl:SetPoint("RIGHT", headerFr, "RIGHT", -20, 0)
+            lbl:SetText(mod.label)
+            lbl:SetJustifyH("LEFT")
+            if mod.labelColor then lbl:SetTextColor(hex(mod.labelColor)) else lbl:SetTextColor(0.88, 0.88, 0.88) end
+
+            local isExp = MR._cfgExpanded[key]
+            local arrowBtn = CreateFrame("Button", nil, headerFr, "BackdropTemplate")
+            arrowBtn:SetSize(16, 16)
+            arrowBtn:SetPoint("RIGHT", headerFr, "RIGHT", 0, 0)
+            arrowBtn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            arrowBtn:SetBackdropColor(0.05, 0.10, 0.18, 1)
+            arrowBtn:SetBackdropBorderColor(0.15, 0.32, 0.38, 1)
+            local arrowLbl = arrowBtn:CreateFontString(nil, "OVERLAY")
+            arrowLbl:SetFont(FONT_HEADERS, 10, "OUTLINE")
+            arrowLbl:SetPoint("CENTER", arrowBtn, "CENTER", 0, 1)
+            arrowLbl:SetText(isExp and "v" or ">")
+            arrowLbl:SetTextColor(0.45, 0.75, 0.70)
+            arrowBtn:SetScript("OnClick", function()
+                MR._cfgExpanded[key] = not MR._cfgExpanded[key]
+                MR:PopulateConfigFrame(f)
+            end)
+            arrowBtn:SetScript("OnEnter", function()
+                arrowBtn:SetBackdropColor(0.08, 0.22, 0.32, 1)
+                arrowBtn:SetBackdropBorderColor(0.25, 0.85, 0.72, 1)
+                arrowLbl:SetTextColor(1, 1, 1)
+            end)
+            arrowBtn:SetScript("OnLeave", function()
+                arrowBtn:SetBackdropColor(0.05, 0.10, 0.18, 1)
+                arrowBtn:SetBackdropBorderColor(0.15, 0.32, 0.38, 1)
+                arrowLbl:SetTextColor(0.45, 0.75, 0.70)
+            end)
+
+            yOff = yOff - ROW_H
+
+            if MR._cfgExpanded[key] then
+                local guide = body:CreateTexture(nil, "ARTWORK")
+                guide:SetWidth(1)
+                guide:SetColorTexture(0.20, 0.55, 0.50, 0.35)
+
+                local guideTopY = yOff  
+
+                for _, row in ipairs(mod.rows) do
+                    local rkey    = row.key
+                    local enabled = MR:IsRowEnabled(key, rkey)
+
+                    local rowFr = CreateFrame("Frame", nil, body)
+                    rowFr:SetPoint("TOPLEFT", body, "TOPLEFT", 18, yOff)
+                    rowFr:SetSize(176, 18)
+
+                    local rdot = rowFr:CreateTexture(nil, "ARTWORK")
+                    rdot:SetSize(5, 5)
+                    rdot:SetPoint("LEFT", rowFr, "LEFT", 0, 0)
+                    if mod.labelColor then
+                        rdot:SetColorTexture(hex(mod.labelColor))
+                    else
+                        rdot:SetColorTexture(0.4, 0.4, 0.4, 1)
+                    end
+                    rdot:SetAlpha(enabled and 0.8 or 0.25)
+
+                    local cleanLabel = row.label:gsub("|c%x%x%x%x%x%x%x%x(.-)%|r", "%1"):gsub("|[cCrR]%x*", "")
+                    local rlbl = rowFr:CreateFontString(nil, "OVERLAY")
+                    rlbl:SetFont(FONT_ROWS, 9, "OUTLINE")
+                    rlbl:SetPoint("LEFT", rowFr, "LEFT", 10, 0)
+                    rlbl:SetPoint("RIGHT", rowFr, "RIGHT", -20, 0)
+                    rlbl:SetJustifyH("LEFT")
+                    rlbl:SetText(cleanLabel)
+                    rlbl:SetTextColor(enabled and 0.80 or 0.35, enabled and 0.80 or 0.35, enabled and 0.80 or 0.35)
+
+                    local eyeBtn = CreateFrame("Button", nil, rowFr, "BackdropTemplate")
+                    eyeBtn:SetSize(14, 14)
+                    eyeBtn:SetPoint("RIGHT", rowFr, "RIGHT", 0, 0)
+                    eyeBtn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+                    eyeBtn:SetBackdropColor(0.05, 0.10, 0.18, 1)
+                    eyeBtn:SetBackdropBorderColor(
+                        enabled and 0.15 or 0.35,
+                        enabled and 0.32 or 0.12,
+                        enabled and 0.38 or 0.12, 1)
+                    local eyeLbl = eyeBtn:CreateFontString(nil, "OVERLAY")
+                    eyeLbl:SetFont(FONT_ROWS, 9, "OUTLINE")
+                    eyeLbl:SetPoint("CENTER", eyeBtn, "CENTER", 0, 0)
+                    eyeLbl:SetText(enabled and "o" or "-")
+                    eyeLbl:SetTextColor(
+                        enabled and 0.25 or 0.55,
+                        enabled and 0.85 or 0.25,
+                        enabled and 0.70 or 0.25)
+
+                    eyeBtn:SetScript("OnClick", function()
+                        MR:SetRowEnabled(key, rkey, not MR:IsRowEnabled(key, rkey))
+                        MR:RefreshUI()
+                        MR:PopulateConfigFrame(f)
+                    end)
+                    eyeBtn:SetScript("OnEnter", function()
+                        eyeBtn:SetBackdropColor(0.08, 0.22, 0.32, 1)
+                        eyeBtn:SetBackdropBorderColor(0.25, 0.85, 0.72, 1)
+                        eyeLbl:SetTextColor(1, 1, 1)
+                        GameTooltip:SetOwner(eyeBtn, "ANCHOR_RIGHT")
+                        GameTooltip:SetText(enabled and "Click to hide this row" or "Click to show this row", 1, 1, 1)
+                        GameTooltip:Show()
+                    end)
+                    eyeBtn:SetScript("OnLeave", function()
+                        eyeBtn:SetBackdropColor(0.05, 0.10, 0.18, 1)
+                        eyeBtn:SetBackdropBorderColor(
+                            enabled and 0.15 or 0.35,
+                            enabled and 0.32 or 0.12,
+                            enabled and 0.38 or 0.12, 1)
+                        eyeLbl:SetTextColor(
+                            enabled and 0.25 or 0.55,
+                            enabled and 0.85 or 0.25,
+                            enabled and 0.70 or 0.25)
+                        GameTooltip:Hide()
+                    end)
+
+                    yOff = yOff - 19
+                end
+
+                guide:SetPoint("TOPLEFT",    body, "TOPLEFT", 14, guideTopY)
+                guide:SetPoint("BOTTOMLEFT", body, "TOPLEFT", 14, yOff + 4)
+
+                Gap(3)
+            end
         end
     end
-
-    Gap(4); Divider()
-    SectionLabel("SIZE")
-    Btn("Max Width", function()
-        ApplyWidth(PANEL_MAX_WIDTH)
-        MR:PopulateConfigFrame(f)
-    end)
-    Btn("Min Width", function()
-        ApplyWidth(PANEL_MIN_WIDTH)
-        MR:PopulateConfigFrame(f)
-    end)
 
     Gap(4); Divider()
     SectionLabel("RESETS")
