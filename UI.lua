@@ -13,8 +13,8 @@ local HEADER_HEIGHT = 18
 local PADDING       = 6
 
 local function GetFontSize()
-    if MidnightRoutineDB and MidnightRoutineDB.fontSize then
-        return MidnightRoutineDB.fontSize
+    if MR.db and MR.db.profile and MR.db.profile.fontSize then
+        return MR.db.profile.fontSize
     end
     return 11
 end
@@ -42,7 +42,7 @@ local COL = {
 
 local function ApplyTheme()
     if not MR.frame then return end
-    local t = MidnightRoutineDB.transparentMode
+    local t = MR.db.profile.transparentMode
     local f = MR.frame
     if t then
         f:SetBackdropColor(0, 0, 0, 0)
@@ -59,7 +59,7 @@ end
 
 local function ApplyWidth(newW)
     newW = math.max(PANEL_MIN_WIDTH, math.min(PANEL_MAX_WIDTH, math.floor(newW)))
-    MidnightRoutineDB.width = newW
+    MR.db.profile.width = newW
     if MR.frame then MR.frame:SetWidth(newW) end
     if MR.content then MR.content:SetWidth(newW - 13) end
     MR:RefreshUI()
@@ -68,7 +68,7 @@ MR.ApplyWidth = ApplyWidth
 
 local function ApplyFontSize(newSize)
     newSize = math.max(FONT_SIZE_MIN, math.min(FONT_SIZE_MAX, math.floor(newSize)))
-    MidnightRoutineDB.fontSize = newSize
+    MR.db.profile.fontSize = newSize
     RecalcLayout()
     MR:RefreshUI()
 end
@@ -126,7 +126,7 @@ dragUpdater:SetScript("OnUpdate", function()
             slotY = sec and (sec.frame:GetBottom() or cy) or cy
         end
         local cL = MR.content:GetLeft()  or 0
-        local cR = MR.content:GetRight() or (cL + (MidnightRoutineDB.width or 260))
+        local cR = MR.content:GetRight() or (cL + (MR.db.profile.width or 260))
         DRAG.dropLine:ClearAllPoints()
         DRAG.dropLine:SetPoint("TOPLEFT",  UIParent, "BOTTOMLEFT", cL, slotY)
         DRAG.dropLine:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", cR, slotY)
@@ -179,7 +179,7 @@ local function StartSectionDrag(modKey, labelText)
     DRAG.sections   = sections
     DRAG.targetSlot = #sections
     if not DRAG.ghost then
-        local w = MidnightRoutineDB.width or 260
+        local w = MR.db.profile.width or 260
         local g = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
         g:SetSize(w - 10, HEADER_HEIGHT)
         g:SetFrameStrata("TOOLTIP")
@@ -224,7 +224,7 @@ function MR:BuildUI()
     if self.frame then self.frame:Show() return end
 
     RecalcLayout()
-    local w = MidnightRoutineDB.width or 260
+    local w = MR.db.profile.width or 260
 
     local f = CreateFrame("Frame", "MidnightRoutineFrame", UIParent, "BackdropTemplate")
     f:SetWidth(w)
@@ -240,13 +240,13 @@ function MR:BuildUI()
     f:SetMovable(true)
     f:SetClampedToScreen(true)
 
-    local p = MidnightRoutineDB.position
+    local p = MR.db.profile.position
     if p and p.point then
         f:SetPoint(p.point, UIParent, p.relPoint or p.point, p.x or 0, p.y or 0)
     else
         f:SetPoint("CENTER")
     end
-    f:SetScale(MidnightRoutineDB.scale or 1)
+    f:SetScale(MR.db.profile.scale or 1)
     self.frame = f
 
     local HEADER_H = 24
@@ -268,12 +268,12 @@ function MR:BuildUI()
     titleBar:EnableMouse(true)
     titleBar:RegisterForDrag("LeftButton")
     titleBar:SetScript("OnDragStart", function()
-        if not MidnightRoutineDB.locked then f:StartMoving() end
+        if not MR.db.profile.locked then f:StartMoving() end
     end)
     titleBar:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
         local pt, _, rp, x, y = f:GetPoint()
-        MidnightRoutineDB.position = { point = pt, relPoint = rp, x = x, y = y }
+        MR.db.profile.position = { point = pt, relPoint = rp, x = x, y = y }
     end)
 
     local titleAccent = titleBar:CreateTexture(nil, "ARTWORK")
@@ -303,7 +303,7 @@ function MR:BuildUI()
         btn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
         btn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
 
-        local iconObj  
+        local iconObj
         if icon.tex then
             local t = btn:CreateTexture(nil, "OVERLAY")
             t:SetSize(BTN_SIZE - 2, BTN_SIZE - 2)
@@ -363,7 +363,10 @@ function MR:BuildUI()
         "Hide Midnight Routine"
     )
     closeBtn:SetPoint("RIGHT", titleBar, "RIGHT", -BTN_MARGIN, 0)
-    closeBtn:SetScript("OnClick", function() f:Hide() end)
+    closeBtn:SetScript("OnClick", function()
+        f:Hide()
+        MR.db.profile.panelOpen = false
+    end)
 
     local minBtn = MakeHeaderBtn(
         { text = "-" },
@@ -377,13 +380,13 @@ function MR:BuildUI()
     self.minBtn = minBtn
 
     local function UpdateMinimizeVisual()
-        minBtn._lbl:SetText(MidnightRoutineDB.minimized and "+" or "-")
+        minBtn._lbl:SetText(MR.db.profile.minimized and "+" or "-")
     end
     UpdateMinimizeVisual()
     self.UpdateMinimizeVisual = UpdateMinimizeVisual
 
     local function ApplyMinimizeState()
-        if MidnightRoutineDB.minimized then
+        if MR.db.profile.minimized then
             if MR.scroll       then MR.scroll:Hide()       end
             if MR._scrollBg    then MR._scrollBg:Hide()    end
             if MR._scrollTrack then MR._scrollTrack:Hide() end
@@ -399,7 +402,7 @@ function MR:BuildUI()
     self.ApplyMinimizeState = ApplyMinimizeState
 
     minBtn:SetScript("OnClick", function()
-        MidnightRoutineDB.minimized = not MidnightRoutineDB.minimized
+        MR.db.profile.minimized = not MR.db.profile.minimized
         ApplyMinimizeState()
     end)
 
@@ -423,7 +426,7 @@ function MR:BuildUI()
     self.scroll = scroll
 
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetWidth((MidnightRoutineDB.width or 260) - 13)
+    content:SetWidth((MR.db.profile.width or 260) - 13)
     content:SetHeight(1)
     scroll:SetScrollChild(content)
     self.content = content
@@ -463,7 +466,6 @@ function MR:BuildUI()
     scroll:SetScript("OnScrollRangeChanged", function() UpdateScrollBar() end)
     scroll:SetScript("OnVerticalScroll",     function() UpdateScrollBar() end)
     self.UpdateScrollBar = UpdateScrollBar
-
 
 
     self.widgets         = {}
@@ -516,7 +518,7 @@ function MR:RefreshUI()
 
     if self.UpdateScrollBar then self.UpdateScrollBar() end
 
-    if MidnightRoutineDB.minimized then
+    if MR.db.profile.minimized then
         if self.scroll       then self.scroll:Hide()       end
         if self._scrollBg    then self._scrollBg:Hide()    end
         if self._scrollTrack then self._scrollTrack:Hide() end
@@ -537,12 +539,12 @@ function MR:BuildSection(mod, yOff)
 
     local hdrFrame = CreateFrame("Frame", nil, self.content)
     hdrFrame:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -yOff)
-    hdrFrame:SetSize((MidnightRoutineDB.width or 260) - 13, HEADER_HEIGHT)
+    hdrFrame:SetSize((MR.db.profile.width or 260) - 13, HEADER_HEIGHT)
     hdrFrame:EnableMouse(true)
 
     local hdrBg = hdrFrame:CreateTexture(nil, "BACKGROUND")
     hdrBg:SetAllPoints()
-    hdrBg:SetColorTexture(0, 0, 0, MidnightRoutineDB.transparentMode and 0.45 or 0.55)
+    hdrBg:SetColorTexture(0, 0, 0, MR.db.profile.transparentMode and 0.45 or 0.55)
 
     local hdrHover = hdrFrame:CreateTexture(nil, "BORDER")
     hdrHover:SetAllPoints()
@@ -625,7 +627,7 @@ function MR:BuildSection(mod, yOff)
 
     local div = CreateFrame("Frame", nil, self.content, "BackdropTemplate")
     div:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -yOff)
-    div:SetSize((MidnightRoutineDB.width or 260) - 13, 1)
+    div:SetSize((MR.db.profile.width or 260) - 13, 1)
     div:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
     div:SetBackdropColor(1, 1, 1, 0.06)
     table.insert(self.widgets, div)
@@ -634,7 +636,7 @@ function MR:BuildSection(mod, yOff)
         for _, row in ipairs(mod.rows) do
             if MR:IsRowEnabled(mod.key, row.key) then
                 local done = MR:GetProgress(mod.key, row.key)
-                if not (MidnightRoutineDB.hideComplete and done >= row.max) then
+                if not (MR.db.profile.hideComplete and done >= row.max) then
                     yOff = self:BuildRow(mod, row, done, yOff)
                 end
             end
@@ -652,7 +654,7 @@ function MR:BuildRow(mod, row, done, yOff)
 
     local rowFrame = CreateFrame("Frame", nil, self.content)
     rowFrame:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -yOff)
-    rowFrame:SetSize((MidnightRoutineDB.width or 260) - 13, ROW_HEIGHT)
+    rowFrame:SetSize((MR.db.profile.width or 260) - 13, ROW_HEIGHT)
     rowFrame:EnableMouse(true)
 
     local hover = rowFrame:CreateTexture(nil, "BACKGROUND")
@@ -887,20 +889,23 @@ function MR:PopulateConfigFrame(f)
 
     SectionLabel("OPTIONS")
     Checkbox("Hide Completed",
-        function() return MidnightRoutineDB.hideComplete end,
-        function(v) MidnightRoutineDB.hideComplete = v; MR:RefreshUI() end)
+        function() return MR.db.profile.hideComplete end,
+        function(v) MR.db.profile.hideComplete = v; MR:RefreshUI() end)
     Checkbox("Lock Frame",
-        function() return MidnightRoutineDB.locked end,
+        function() return MR.db.profile.locked end,
         function(v)
-            MidnightRoutineDB.locked = v
+            MR.db.profile.locked = v
             MR.frame:SetMovable(not v)
         end)
     Checkbox("Transparent Mode",
-        function() return MidnightRoutineDB.transparentMode end,
+        function() return MR.db.profile.transparentMode end,
         function(v)
-            MidnightRoutineDB.transparentMode = v
+            MR.db.profile.transparentMode = v
             ApplyTheme()
         end)
+    Checkbox("Hide Minimap Icon",
+        function() return MR.db.profile.minimap and MR.db.profile.minimap.hide or false end,
+        function(v) MR:SetMinimapHidden(v) end)
 
     Gap(6)
     local sliderLabel = body:CreateFontString(nil, "OVERLAY")
@@ -948,8 +953,8 @@ function MR:PopulateConfigFrame(f)
         sliderValText:SetText(w)
     end
 
-    slider:SetValue(MidnightRoutineDB.width or 260)
-    UpdateSliderVisual(MidnightRoutineDB.width or 260)
+    slider:SetValue(MR.db.profile.width or 260)
+    UpdateSliderVisual(MR.db.profile.width or 260)
 
     slider:SetScript("OnValueChanged", function(s, v)
         v = math.floor(v / 10) * 10
@@ -1143,7 +1148,7 @@ function MR:PopulateConfigFrame(f)
                 guide:SetWidth(1)
                 guide:SetColorTexture(0.20, 0.55, 0.50, 0.35)
 
-                local guideTopY = yOff  
+                local guideTopY = yOff
 
                 for _, row in ipairs(mod.rows) do
                     local rkey    = row.key
@@ -1234,12 +1239,12 @@ function MR:PopulateConfigFrame(f)
         MR:PopulateConfigFrame(f)
     end)
     Btn("Reset Everything", function()
-        MidnightRoutineDB.progress = {}
+        MR.db.char.progress = {}
         MR:ScanQuests()
         MR:PopulateConfigFrame(f)
     end)
     Btn("Reset Section Order", function()
-        MidnightRoutineDB.moduleOrder = {}
+        MR.db.profile.moduleOrder = {}
         MR:RefreshUI()
         MR:PopulateConfigFrame(f)
     end)

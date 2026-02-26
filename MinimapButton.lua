@@ -1,3 +1,5 @@
+
+
 local LDB     = LibStub("LibDataBroker-1.1")
 local LDBIcon = LibStub("LibDBIcon-1.0")
 
@@ -11,14 +13,14 @@ local minimapObject = LDB:NewDataObject("MidnightRoutine", {
             if MR.frame then
                 if MR.frame:IsShown() then
                     MR.frame:Hide()
-                    MidnightRoutineDB.panelOpen = false
+                    MR.db.profile.panelOpen = false
                 else
                     MR.frame:Show()
-                    MidnightRoutineDB.panelOpen = true
+                    MR.db.profile.panelOpen = true
                 end
             end
         elseif button == "RightButton" then
-            MR:ToggleConfig()
+            if MR.ToggleConfig then MR:ToggleConfig() end
         end
     end,
 
@@ -26,40 +28,26 @@ local minimapObject = LDB:NewDataObject("MidnightRoutine", {
         tt:AddLine("|cff2ae7c6Midnight Routine|r", 1, 1, 1)
         tt:AddLine("Left-click: Show / Hide",  0.8, 0.8, 0.8)
         tt:AddLine("Right-click: Options",     0.8, 0.8, 0.8)
-
-
+        tt:AddLine("/mr minimap — hide this icon", 0.5, 0.5, 0.5)
     end,
 })
 
+
 local mmLoader = CreateFrame("Frame")
-mmLoader:RegisterEvent("ADDON_LOADED")
-mmLoader:SetScript("OnEvent", function(self, event, arg1)
-    if arg1 ~= "MidnightRoutine" then return end
+mmLoader:RegisterEvent("PLAYER_LOGIN")
+mmLoader:SetScript("OnEvent", function(self)
     self:UnregisterAllEvents()
 
-    if not MidnightRoutineDB.minimap then
-        MidnightRoutineDB.minimap = { hide = false }
-    end
-
     if not LDBIcon:IsRegistered("MidnightRoutine") then
-        LDBIcon:Register("MidnightRoutine", minimapObject, MidnightRoutineDB.minimap)
+        LDBIcon:Register("MidnightRoutine", minimapObject, MR.db.profile.minimap)
     end
-
-    C_Timer.After(0, function()
-        if MidnightRoutineDB.panelOpen == false and MR.frame then
-            MR.frame:Hide()
-        end
-    end)
 end)
 
 function MR:SetMinimapHidden(hide)
-    if not MidnightRoutineDB or not MidnightRoutineDB.minimap then return end
-    MidnightRoutineDB.minimap.hide = hide and true or false
+    if not self.db then return end
+    self.db.profile.minimap.hide = hide and true or false
     if LDBIcon:IsRegistered("MidnightRoutine") then
-        if hide then
-            LDBIcon:Hide("MidnightRoutine")
-        else
-            LDBIcon:Show("MidnightRoutine")
-        end
+        if hide then LDBIcon:Hide("MidnightRoutine")
+        else         LDBIcon:Show("MidnightRoutine") end
     end
 end

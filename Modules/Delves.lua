@@ -10,7 +10,7 @@ MR:RegisterModule({
         local activities = C_WeeklyRewards.GetActivities()
         if not activities then return end
 
-        local db = MidnightRoutineDB.progress
+        local db = MR.db.char.progress
         if not db[mod.key] then db[mod.key] = {} end
 
         for _, act in ipairs(activities) do

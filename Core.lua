@@ -1,16 +1,29 @@
-MR = MR or {}
+local addonName = "MidnightRoutine"
+
+local LibStub   = LibStub
+local AceAddon  = LibStub("AceAddon-3.0")
+local AceDB     = LibStub("AceDB-3.0")
+
+MR = AceAddon:NewAddon(addonName, "AceEvent-3.0", "AceBucket-3.0", "AceTimer-3.0")
 
 local DEFAULTS = {
-    position        = { point = "CENTER", x = 0, y = 0 },
-    locked          = false,
-    scale           = 1.0,
-    hideComplete    = true,
-    modules         = {},
-    progress        = {},
-    moduleOrder     = {},
-    transparentMode = false,
-    width           = 260,
-    fontSize        = 11,
+    profile = {
+        locked          = false,
+        scale           = 1.0,
+        hideComplete    = true,
+        transparentMode = false,
+        width           = 260,
+        fontSize        = 11,
+        panelOpen       = true,
+        minimap         = { hide = false },
+        modules         = {},
+        moduleOrder     = {},
+        position        = { point = "CENTER", x = 0, y = 0 },
+    },
+    char = {
+        progress = {},
+        lastWeek = 0,
+    },
 }
 
 MR.modules = {}
@@ -22,17 +35,30 @@ function MR:RegisterModule(def)
     table.insert(self.modules, def)
 end
 
+function MR:GetProgress(moduleKey, rowKey)
+    local m = self.db.char.progress[moduleKey]
+    return m and m[rowKey] or 0
+end
+
+function MR:SetProgress(moduleKey, rowKey, value, maxVal)
+    if not self.db.char.progress[moduleKey] then
+        self.db.char.progress[moduleKey] = {}
+    end
+    self.db.char.progress[moduleKey][rowKey] = math.max(0, math.min(value, maxVal))
+    self:RefreshUI()
+end
+
+function MR:BumpProgress(moduleKey, rowKey, delta, maxVal)
+    self:SetProgress(moduleKey, rowKey, self:GetProgress(moduleKey, rowKey) + delta, maxVal)
+end
+
 function MR:GetOrderedModules()
-    local saved = MidnightRoutineDB.moduleOrder
+    local saved = self.db.profile.moduleOrder
     if not saved or #saved == 0 then return self.modules end
-    local byKey = {}
+    local byKey, result = {}, {}
     for _, mod in ipairs(self.modules) do byKey[mod.key] = mod end
-    local result = {}
     for _, key in ipairs(saved) do
-        if byKey[key] then
-            table.insert(result, byKey[key])
-            byKey[key] = nil
-        end
+        if byKey[key] then table.insert(result, byKey[key]); byKey[key] = nil end
     end
     for _, mod in ipairs(self.modules) do
         if byKey[mod.key] then table.insert(result, mod) end
@@ -41,95 +67,7 @@ function MR:GetOrderedModules()
 end
 
 function MR:SetModuleOrder(orderedKeys)
-    MidnightRoutineDB.moduleOrder = orderedKeys
-end
-
-function MR:GetProgress(moduleKey, rowKey)
-    local m = MidnightRoutineDB.progress[moduleKey]
-    return m and m[rowKey] or 0
-end
-
-function MR:SetProgress(moduleKey, rowKey, value, max)
-    if not MidnightRoutineDB.progress[moduleKey] then
-        MidnightRoutineDB.progress[moduleKey] = {}
-    end
-    MidnightRoutineDB.progress[moduleKey][rowKey] = math.max(0, math.min(value, max))
-    MR:RefreshUI()
-end
-
-function MR:BumpProgress(moduleKey, rowKey, delta, max)
-    local cur = self:GetProgress(moduleKey, rowKey)
-    self:SetProgress(moduleKey, rowKey, cur + delta, max)
-end
-
-function MR:ScanQuests()
-    for _, mod in ipairs(self.modules) do
-        for _, row in ipairs(mod.rows) do
-            if row.questIds then
-                local done = 0
-                for _, qid in ipairs(row.questIds) do
-                    if C_QuestLog.IsQuestFlaggedCompleted(qid) then
-                        done = done + 1
-                    end
-                end
-                done = math.min(done, row.max or #row.questIds)
-                if not MidnightRoutineDB.progress[mod.key] then
-                    MidnightRoutineDB.progress[mod.key] = {}
-                end
-                MidnightRoutineDB.progress[mod.key][row.key] = done
-            end
-        end
-    end
-    MR:RefreshUI()
-end
-
-MR.playerProfessions = MR.playerProfessions or {}
-
-local PARENT_TO_MIDNIGHT = {
-    [171] = 2906,
-    [164] = 2907,
-    [333] = 2909,
-    [202] = 2910,
-    [182] = 2912,
-    [773] = 2913,
-    [755] = 2914,
-    [165] = 2915,
-    [186] = 2916,
-    [393] = 2917,
-    [197] = 2918,
-}
-
-function MR:RefreshPlayerProfessions()
-    self.playerProfessions = {}
-    if C_TradeSkillUI and C_TradeSkillUI.GetAllProfessionTradeSkillLines then
-        local lines = C_TradeSkillUI.GetAllProfessionTradeSkillLines()
-        if lines then
-            for _, skillLineID in pairs(lines) do
-                local info = C_TradeSkillUI.GetProfessionInfoBySkillLineID and
-                             C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID)
-                if info and (info.skillLevel or 0) > 0 then
-                    self.playerProfessions[skillLineID] = true
-                    if info.parentProfessionID then
-                        local midnightID = PARENT_TO_MIDNIGHT[info.parentProfessionID]
-                        if midnightID then
-                            self.playerProfessions[midnightID] = true
-                        end
-                    end
-                end
-            end
-        end
-    end
-    for _, idx in pairs({ GetProfessions() }) do
-        if idx then
-            local _, _, _, _, _, _, parentSkillLine = GetProfessionInfo(idx)
-            if parentSkillLine then
-                local midnightID = PARENT_TO_MIDNIGHT[parentSkillLine]
-                if midnightID then
-                    self.playerProfessions[midnightID] = true
-                end
-            end
-        end
-    end
+    self.db.profile.moduleOrder = orderedKeys
 end
 
 function MR:IsModuleEnabled(key)
@@ -138,13 +76,12 @@ function MR:IsModuleEnabled(key)
             return self.playerProfessions[mod.profSkillLine] == true
         end
     end
-    local s = MidnightRoutineDB and MidnightRoutineDB.modules and MidnightRoutineDB.modules[key]
-    if s ~= nil and s.enabled == false then return false end
-    return true
+    local s = self.db.profile.modules[key]
+    return not (s and s.enabled == false)
 end
 
 function MR:IsModuleOpen(key)
-    local s = MidnightRoutineDB.modules[key]
+    local s = self.db.profile.modules[key]
     if s == nil then
         for _, m in ipairs(self.modules) do
             if m.key == key then return m.defaultOpen ~= false end
@@ -155,144 +92,291 @@ function MR:IsModuleOpen(key)
 end
 
 function MR:SetModuleOpen(key, open)
-    if not MidnightRoutineDB.modules[key] then MidnightRoutineDB.modules[key] = {} end
-    MidnightRoutineDB.modules[key].open = open
+    if not self.db.profile.modules[key] then self.db.profile.modules[key] = {} end
+    self.db.profile.modules[key].open = open
 end
 
 function MR:SetModuleEnabled(key, enabled)
     for _, mod in ipairs(self.modules) do
         if mod.key == key and mod.profSkillLine then return end
     end
-    if not MidnightRoutineDB.modules[key] then MidnightRoutineDB.modules[key] = {} end
-    MidnightRoutineDB.modules[key].enabled = enabled
-    MR:RefreshUI()
+    if not self.db.profile.modules[key] then self.db.profile.modules[key] = {} end
+    self.db.profile.modules[key].enabled = enabled
+    self:RefreshUI()
+end
+
+function MR:IsRowEnabled(modKey, rowKey)
+    local s = self.db.profile.modules[modKey]
+    return not (s and s.hiddenRows and s.hiddenRows[rowKey] == false)
+end
+
+function MR:SetRowEnabled(modKey, rowKey, enabled)
+    if not self.db.profile.modules[modKey] then self.db.profile.modules[modKey] = {} end
+    if not self.db.profile.modules[modKey].hiddenRows then
+        self.db.profile.modules[modKey].hiddenRows = {}
+    end
+    self.db.profile.modules[modKey].hiddenRows[rowKey] = enabled and nil or false
+end
+
+
+local PARENT_TO_MIDNIGHT = {
+    [171]=2906, [164]=2907, [333]=2909, [202]=2910, [182]=2912,
+    [773]=2913, [755]=2914, [165]=2915, [186]=2916, [393]=2917, [197]=2918,
+}
+
+MR.playerProfessions = MR.playerProfessions or {}
+
+function MR:RefreshPlayerProfessions()
+    wipe(self.playerProfessions)
+
+
+    if C_TradeSkillUI and C_TradeSkillUI.GetAllProfessionTradeSkillLines then
+        local lines = C_TradeSkillUI.GetAllProfessionTradeSkillLines()
+        if lines then
+            for _, skillLineID in ipairs(lines) do
+                local info = C_TradeSkillUI.GetProfessionInfoBySkillLineID and
+                             C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID)
+
+                if info and (info.skillLevel or 0) > 0 then
+                    self.playerProfessions[skillLineID] = true
+                    if info.parentProfessionID then
+                        local mid = PARENT_TO_MIDNIGHT[info.parentProfessionID]
+                        if mid then self.playerProfessions[mid] = true end
+                    end
+                end
+            end
+        end
+    end
+
+
+    for _, idx in ipairs({ GetProfessions() }) do
+        if idx then
+            local _, _, _, _, _, _, parentSkillLine = GetProfessionInfo(idx)
+            if parentSkillLine then
+                local mid = PARENT_TO_MIDNIGHT[parentSkillLine]
+                if mid then self.playerProfessions[mid] = true end
+            end
+        end
+    end
+end
+
+
+local function Snapshot(progress)
+    local snap = {}
+    for mk, rows in pairs(progress) do
+        snap[mk] = {}
+        for rk, v in pairs(rows) do snap[mk][rk] = v end
+    end
+    return snap
+end
+
+local function SnapshotChanged(before, after)
+    for mk, rows in pairs(after) do
+        if not before[mk] then return true end
+        for rk, v in pairs(rows) do
+            if before[mk][rk] ~= v then return true end
+        end
+    end
+    return false
+end
+
+function MR:ScanQuests()
+    local progress = self.db.char.progress
+    local before   = Snapshot(progress)
+
+
+    for _, mod in ipairs(self.modules) do
+        for _, row in ipairs(mod.rows) do
+            if row.questIds then
+                local done = 0
+                for _, qid in ipairs(row.questIds) do
+                    if C_QuestLog.IsQuestFlaggedCompleted(qid) then done = done + 1 end
+                end
+                done = math.min(done, row.max or #row.questIds)
+                if not progress[mod.key] then progress[mod.key] = {} end
+                progress[mod.key][row.key] = done
+            end
+        end
+    end
+
+
+    for _, mod in ipairs(self.modules) do
+        if mod.onScan then mod.onScan(mod) end
+    end
+
+
+    for _, mod in ipairs(self.modules) do
+        local mdb = progress[mod.key]
+        if mdb then
+            for _, row in ipairs(mod.rows) do
+                if row.liveKey and mdb[row.liveKey] ~= nil then
+                    mdb[row.key] = math.min(mdb[row.liveKey], row.max)
+                end
+                if row.liveTierLabelKey and mdb[row.liveTierLabelKey] then
+                    row.vaultLabel = mdb[row.liveTierLabelKey]
+                end
+                if row.liveTierColorKey and mdb[row.liveTierColorKey] then
+                    row.vaultColor = mdb[row.liveTierColorKey]
+                end
+            end
+        end
+    end
+
+
+    if SnapshotChanged(before, Snapshot(progress)) then
+        self:RefreshUI()
+    end
+end
+
+
+function MR:GetCurrentWeekKey()
+    local secondsUntilReset = C_DateAndTime.GetSecondsUntilWeeklyReset()
+    return math.floor((GetServerTime() + secondsUntilReset) / 604800)
 end
 
 function MR:CheckWeeklyReset()
-    local currentWeek = math.floor(GetServerTime() / 604800)
-    if MidnightRoutineDB.lastWeek ~= currentWeek then
-        MidnightRoutineDB.lastWeek = currentWeek
+    local currentWeek = self:GetCurrentWeekKey()
+    if self.db.char.lastWeek ~= currentWeek then
+        self.db.char.lastWeek = currentWeek
         self:DoWeeklyReset()
     end
 end
 
 function MR:DoWeeklyReset()
     for _, mod in ipairs(self.modules) do
-        if mod.resetType == "weekly" or mod.resetType == "daily" then
-            MidnightRoutineDB.progress[mod.key] = {}
+        if mod.resetType == "weekly" then
+            self.db.char.progress[mod.key] = {}
         end
     end
     self:ScanQuests()
     print("|cff2ae7c6MidnightRoutine:|r Weekly reset applied.")
 end
 
+
+function MR:OnInitialize()
+
+    self.db = AceDB:New("MidnightRoutineDB", DEFAULTS, true)
+end
+
+function MR:OnEnable()
+
+
+    self:RegisterBucketEvent({
+        "QUEST_LOG_UPDATE",
+        "UNIT_QUEST_LOG_CHANGED",
+        "QUEST_TURNED_IN",
+        "LFG_COMPLETION_REWARD",
+    }, 1, "ScanQuests")
+
+
+    self:RegisterBucketEvent({
+        "SKILL_LINES_CHANGED",
+        "TRADE_SKILL_LIST_UPDATE",
+        "SKILL_LINE_SPECS_RANKS_CHANGED",
+        "TRADE_SKILL_SHOW",
+    }, 1, "OnProfessionChange")
+
+
+    self:RegisterBucketEvent({
+        "CURRENCY_DISPLAY_UPDATE",
+    }, 2, "OnCurrencyChanged")
+
+
+    self:RegisterEvent("CHALLENGE_MODE_COMPLETED", "OnVaultEvent")
+    self:RegisterEvent("ENCOUNTER_END",            "OnEncounterEnd")
+    self:RegisterEvent("WEEKLY_REWARDS_UPDATE",    "OnVaultEvent")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD",    "OnEnteringWorld")
+end
+
+function MR:OnEnteringWorld()
+    self:CheckWeeklyReset()
+    self:RefreshPlayerProfessions()
+
+    if not self.frame then
+        self:BuildUI()
+    else
+        self:RefreshUI()
+    end
+
+    if self.frame and self.db.profile.panelOpen == false then
+        self.frame:Hide()
+    end
+
+
+    self:ScheduleTimer(function()
+        self:RefreshPlayerProfessions()
+        self:RefreshUI()
+    end, 0.5)
+
+    self:ScanQuests()
+end
+
+function MR:OnProfessionChange()
+    self:RefreshPlayerProfessions()
+    self:RefreshUI()
+end
+
+function MR:OnCurrencyChanged()
+
+    local progress = self.db.char.progress
+    local before   = Snapshot(progress)
+    for _, mod in ipairs(self.modules) do
+        if mod.onScan and mod.currencyTracked then
+            mod.onScan(mod)
+        end
+    end
+    if SnapshotChanged(before, Snapshot(progress)) then
+        self:RefreshUI()
+    end
+end
+
+function MR:OnVaultEvent()
+
+    self:ScheduleTimer(function() self:ScanQuests() end, 1.5)
+end
+
+function MR:OnEncounterEnd(_, _, _, _, _, success)
+    if success == 1 then
+        self:ScheduleTimer(function() self:ScanQuests() end, 1.5)
+    end
+end
+
+
 SLASH_MIDROUTE1 = "/mr"
 SLASH_MIDROUTE2 = "/midroute"
 SlashCmdList["MIDROUTE"] = function(msg)
-    msg = msg:lower():trim()
-    if msg == "reset" then
+    msg = (msg or ""):lower():trim()
+    if     msg == "reset"   then
         MR:DoWeeklyReset()
-    elseif msg == "lock" then
-        MidnightRoutineDB.locked = true
-        MR.frame:SetMovable(false)
+    elseif msg == "lock"    then
+        MR.db.profile.locked = true
+        if MR.frame then MR.frame:SetMovable(false) end
         print("|cff2ae7c6MidnightRoutine:|r Frame locked.")
-    elseif msg == "unlock" then
-        MidnightRoutineDB.locked = false
-        MR.frame:SetMovable(true)
+    elseif msg == "unlock"  then
+        MR.db.profile.locked = false
+        if MR.frame then MR.frame:SetMovable(true) end
         print("|cff2ae7c6MidnightRoutine:|r Frame unlocked.")
-    elseif msg == "hide" then
-        MR.frame:Hide()
-    elseif msg == "show" then
-        MR.frame:Show()
+    elseif msg == "hide"    then
+        if MR.frame then MR.frame:Hide() end
+        MR.db.profile.panelOpen = false
+    elseif msg == "show"    then
+        if MR.frame then MR.frame:Show() end
+        MR.db.profile.panelOpen = true
+    elseif msg == "minimap" then
+        local newHide = not (MR.db.profile.minimap and MR.db.profile.minimap.hide)
+        MR:SetMinimapHidden(newHide)
+        print("|cff2ae7c6MidnightRoutine:|r Minimap icon " .. (newHide and "hidden" or "shown") .. ".")
     elseif msg:match("^scale %d") then
         local s = tonumber(msg:match("scale (%S+)"))
         if s and s >= 0.5 and s <= 2 then
-            MidnightRoutineDB.scale = s
-            MR.frame:SetScale(s)
+            MR.db.profile.scale = s
+            if MR.frame then MR.frame:SetScale(s) end
         end
-    elseif msg == "big" then
+    elseif msg == "big"     then
         if MR.ApplyWidth then MR.ApplyWidth(500) end
-        print("|cff2ae7c6MidnightRoutine:|r Max width applied.")
-    elseif msg == "small" then
+    elseif msg == "small"   then
         if MR.ApplyWidth then MR.ApplyWidth(200) end
-        print("|cff2ae7c6MidnightRoutine:|r Min width applied.")
     else
-        print("|cff2ae7c6/mr|r commands: show, hide, lock, unlock, reset, scale <0.5-2>, big, small")
-    end
-end
-
-local bootstrap = CreateFrame("Frame")
-bootstrap:RegisterEvent("ADDON_LOADED")
-bootstrap:RegisterEvent("PLAYER_LOGIN")
-bootstrap:RegisterEvent("PLAYER_ENTERING_WORLD")
-bootstrap:RegisterEvent("QUEST_TURNED_IN")
-bootstrap:RegisterEvent("QUEST_LOG_UPDATE")
-bootstrap:RegisterEvent("UNIT_QUEST_LOG_CHANGED")
-bootstrap:RegisterEvent("LFG_COMPLETION_REWARD")
-bootstrap:RegisterEvent("SKILL_LINES_CHANGED")
-bootstrap:RegisterEvent("TRADE_SKILL_LIST_UPDATE")
-
-local function DeferredProfessionRefresh()
-    local f = CreateFrame("Frame")
-    f:SetScript("OnUpdate", function(self)
-        self:SetScript("OnUpdate", nil)
-        MR:RefreshPlayerProfessions()
-        MR:RefreshUI()
-    end)
-end
-
-bootstrap:SetScript("OnEvent", function(self, event, arg1)
-    if event == "ADDON_LOADED" and arg1 == "MidnightRoutine" then
-        if not MidnightRoutineDB then MidnightRoutineDB = {} end
-        for k, v in pairs(DEFAULTS) do
-            if MidnightRoutineDB[k] == nil then
-                MidnightRoutineDB[k] = v
-            end
-        end
-
-    elseif event == "PLAYER_LOGIN" then
-        MR:CheckWeeklyReset()
-        MR:ScanQuests()
-
-    elseif event == "PLAYER_ENTERING_WORLD" then
-        MR:RefreshPlayerProfessions()
-        if not MR.frame then
-            MR:BuildUI()
-        else
-            MR:RefreshUI()
-        end
-        DeferredProfessionRefresh()
-
-    elseif event == "SKILL_LINES_CHANGED" then
-        MR:RefreshPlayerProfessions()
-        MR:RefreshUI()
-
-    elseif event == "TRADE_SKILL_LIST_UPDATE" then
-        MR:RefreshPlayerProfessions()
-        MR:RefreshUI()
-
-    elseif event == "QUEST_TURNED_IN"
-        or event == "QUEST_LOG_UPDATE"
-        or event == "UNIT_QUEST_LOG_CHANGED" then
-        MR:ScanQuests()
-
-    elseif event == "LFG_COMPLETION_REWARD" then
-        MR:ScanQuests()
-    end
-end)
-
-function MR:IsRowEnabled(modKey, rowKey)
-    local s = MidnightRoutineDB.modules[modKey]
-    if s and s.hiddenRows and s.hiddenRows[rowKey] == false then return false end
-    return true
-end
-
-function MR:SetRowEnabled(modKey, rowKey, enabled)
-    if not MidnightRoutineDB.modules[modKey] then MidnightRoutineDB.modules[modKey] = {} end
-    if not MidnightRoutineDB.modules[modKey].hiddenRows then MidnightRoutineDB.modules[modKey].hiddenRows = {} end
-    if enabled then
-        MidnightRoutineDB.modules[modKey].hiddenRows[rowKey] = nil
-    else
-        MidnightRoutineDB.modules[modKey].hiddenRows[rowKey] = false
+        print("|cff2ae7c6/mr|r – commands: show, hide, lock, unlock, reset, minimap, scale <0.5-2>, big, small")
     end
 end

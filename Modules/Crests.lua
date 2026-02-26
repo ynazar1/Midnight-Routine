@@ -15,13 +15,14 @@ local CREST_CURRENCIES = {
 
 MR:RegisterModule({
     key         = "crests",
+    currencyTracked = true,
     label       = "Crest Tracker",
     labelColor  = "#f1c232",
     resetType   = "weekly",
     defaultOpen = true,
 
     onScan = function(mod)
-        local db = MidnightRoutineDB.progress
+        local db = MR.db.char.progress
         if not db[mod.key] then db[mod.key] = {} end
         for _, crest in ipairs(CREST_CURRENCIES) do
             local info = C_CurrencyInfo.GetCurrencyInfo(crest.id)
@@ -46,15 +47,3 @@ MR:RegisterModule({
     end)(),
 })
 
-local crestEvents = CreateFrame("Frame")
-crestEvents:RegisterEvent("CURRENCY_DISPLAY_UPDATE")
-crestEvents:RegisterEvent("PLAYER_LOGIN")
-crestEvents:SetScript("OnEvent", function()
-    for _, mod in ipairs(MR.modules) do
-        if mod.key == "crests" and mod.onScan then
-            mod.onScan(mod)
-            break
-        end
-    end
-    if MR.RefreshUI then MR:RefreshUI() end
-end)

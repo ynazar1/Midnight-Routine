@@ -26,7 +26,7 @@ local function ScanCampaign(mod)
     for i, cid in ipairs(chapterIds) do chapterPos[cid] = i end
     local currentPos = (currentChapterId and chapterPos[currentChapterId]) or (#chapterIds + 1)
 
-    local db = MidnightRoutineDB.progress
+    local db = MR.db.char.progress
     if not db[mod.key] then db[mod.key] = {} end
 
     for i, chapterId in ipairs(chapterIds) do
@@ -101,24 +101,15 @@ local function RegisterCampaignModules()
     end
 end
 
-local initFrame = CreateFrame("Frame")
-initFrame:RegisterEvent("PLAYER_LOGIN")
-initFrame:RegisterEvent("QUEST_TURNED_IN")
-initFrame:RegisterEvent("QUEST_LOG_UPDATE")
-initFrame:SetScript("OnEvent", function(_, event)
-    if event == "PLAYER_LOGIN" then
-        C_Timer.After(0, function()
-            RegisterCampaignModules()
-        end)
-    else
 
-        RegisterCampaignModules()
+MR:RegisterEvent("PLAYER_LOGIN", function()
+    C_Timer.After(0, RegisterCampaignModules)
+end)
 
-        for _, mod in ipairs(MR.modules) do
-            if mod._campaignId then
-                ScanCampaign(mod)
-            end
-        end
-        if MR.RefreshUI then MR:RefreshUI() end
+MR:RegisterBucketEvent({ "QUEST_TURNED_IN", "QUEST_LOG_UPDATE" }, 1, function()
+    RegisterCampaignModules()
+    for _, mod in ipairs(MR.modules) do
+        if mod._campaignId then ScanCampaign(mod) end
     end
+    if MR.RefreshUI then MR:RefreshUI() end
 end)

@@ -1,56 +1,55 @@
 local SPELL_ROWS = {
+    [1270530] = { "prof_alchemy",        "alch_notebook",   1 },
+    [1264572] = { "prof_alchemy",        "alch_drops",      1 },
+    [1282284] = { "prof_alchemy",        "alch_treatise",   1 },
 
-    [1270530] = { "prof_alchemy", "alch_notebook", 1 },
-    [1264572] = { "prof_alchemy", "alch_drops",    1 },
-    [1282284] = { "prof_alchemy", "alch_treatise", 1 },
+    [1270531] = { "prof_blacksmithing",  "bs_notebook",     1 },
+    [1264601] = { "prof_blacksmithing",  "bs_drops",        1 },
+    [1282300] = { "prof_blacksmithing",  "bs_treatise",     1 },
 
-    [1270531] = { "prof_blacksmithing", "bs_notebook", 2 },
-    [1264601] = { "prof_blacksmithing", "bs_drops",    2 },
-    [1282300] = { "prof_blacksmithing", "bs_treatise", 1 },
+    [1270532] = { "prof_enchanting",     "ench_notebook",   1 },
+    [1264604] = { "prof_enchanting",     "ench_drops",      1 },
+    [1280988] = { "prof_enchanting",     "ench_de_essence", 1 },
+    [1280992] = { "prof_enchanting",     "ench_de_shard",   4 },
+    [1282301] = { "prof_enchanting",     "ench_treatise",   1 },
 
-    [1270532] = { "prof_enchanting", "ench_notebook",   3 },
-    [1264604] = { "prof_enchanting", "ench_drops",      2 },
-    [1280988] = { "prof_enchanting", "ench_de_essence", 1 },
-    [1280992] = { "prof_enchanting", "ench_de_shard",   4 },
-    [1282301] = { "prof_enchanting", "ench_treatise",   1 },
+    [1270533] = { "prof_engineering",    "eng_notebook",    1 },
+    [1264607] = { "prof_engineering",    "eng_drops",       1 },
+    [1282302] = { "prof_engineering",    "eng_treatise",    1 },
 
-    [1270533] = { "prof_engineering", "eng_notebook", 1 },
-    [1264607] = { "prof_engineering", "eng_drops",    2 },
-    [1282302] = { "prof_engineering", "eng_treatise", 1 },
+    [1270534] = { "prof_herbalism",      "herb_notebook",   3 },
+    [1225342] = { "prof_herbalism",      "herb_drops",      1 },
+    [1225344] = { "prof_herbalism",      "herb_tail",       4 },
+    [1282303] = { "prof_herbalism",      "herb_treatise",   1 },
 
-    [1270534] = { "prof_herbalism", "herb_notebook", 3 },
-    [1225342] = { "prof_herbalism", "herb_drops",    1 },
-    [1225344] = { "prof_herbalism", "herb_tail",     4 },
-    [1282303] = { "prof_herbalism", "herb_treatise", 1 },
+    [1270535] = { "prof_inscription",    "insc_notebook",   4 },
+    [1264608] = { "prof_inscription",    "insc_drops",      1 },
+    [1282304] = { "prof_inscription",    "insc_treatise",   1 },
 
-    [1270535] = { "prof_inscription", "insc_notebook", 4 },
-    [1264608] = { "prof_inscription", "insc_drops",    2 },
-    [1282304] = { "prof_inscription", "insc_treatise", 1 },
+    [1270536] = { "prof_jewelcrafting",  "jc_notebook",     3 },
+    [1264609] = { "prof_jewelcrafting",  "jc_drops",        1 },
+    [1282305] = { "prof_jewelcrafting",  "jc_treatise",     1 },
 
-    [1270536] = { "prof_jewelcrafting", "jc_notebook", 3 },
-    [1264609] = { "prof_jewelcrafting", "jc_drops",    2 },
-    [1282305] = { "prof_jewelcrafting", "jc_treatise", 1 },
+    [1270537] = { "prof_leatherworking", "lw_notebook",     2 },
+    [1264602] = { "prof_leatherworking", "lw_drops",        1 },
+    [1282306] = { "prof_leatherworking", "lw_treatise",     1 },
 
-    [1270537] = { "prof_leatherworking", "lw_notebook", 2 },
-    [1264602] = { "prof_leatherworking", "lw_drops",    2 },
-    [1282306] = { "prof_leatherworking", "lw_treatise", 1 },
+    [1270538] = { "prof_mining",         "mine_notebook",   3 },
+    [1223243] = { "prof_mining",         "mine_rock",       1 },
+    [1223324] = { "prof_mining",         "mine_nodule",     3 },
+    [1282307] = { "prof_mining",         "mine_treatise",   1 },
 
-    [1270538] = { "prof_mining", "mine_notebook", 3 },
-    [1223243] = { "prof_mining", "mine_rock",     1 },
-    [1223324] = { "prof_mining", "mine_nodule",   3 },
-    [1282307] = { "prof_mining", "mine_treatise", 1 },
+    [1270539] = { "prof_skinning",       "skin_notebook",   3 },
+    [1225644] = { "prof_skinning",       "skin_drops",      1 },
+    [1225646] = { "prof_skinning",       "skin_bone",       3 },
+    [1282308] = { "prof_skinning",       "skin_treatise",   1 },
 
-    [1270539] = { "prof_skinning", "skin_notebook", 3 },
-    [1225644] = { "prof_skinning", "skin_drops",    1 },
-    [1225646] = { "prof_skinning", "skin_bone",     3 },
-    [1282308] = { "prof_skinning", "skin_treatise", 1 },
-
-    [1270540] = { "prof_tailoring", "tail_notebook", 2 },
-    [1264610] = { "prof_tailoring", "tail_drops",    2 },
-    [1282309] = { "prof_tailoring", "tail_treatise", 1 },
+    [1270540] = { "prof_tailoring",      "tail_notebook",   2 },
+    [1264610] = { "prof_tailoring",      "tail_drops",      1 },
+    [1282309] = { "prof_tailoring",      "tail_treatise",   1 },
 }
 
-local SKILL_TO_MODULES = {
+local SKILL_TO_MODULE = {
     [2906] = "prof_alchemy",
     [2907] = "prof_blacksmithing",
     [2909] = "prof_enchanting",
@@ -64,532 +63,199 @@ local SKILL_TO_MODULES = {
     [2918] = "prof_tailoring",
 }
 
-local MODULE_SKILL = {}
-for skillLine, modKey in pairs(SKILL_TO_MODULES) do
-    MODULE_SKILL[modKey] = skillLine
-end
-
-local ROW_MAX = {}
-
-local rowMaxCached = false
+local rowMaxCache = nil
 
 local function GetRowMax(modKey, rowKey)
-    if not rowMaxCached then
+    if not rowMaxCache then
+        rowMaxCache = {}
         for _, mod in ipairs(MR.modules) do
             for _, row in ipairs(mod.rows) do
-                ROW_MAX[mod.key .. "\0" .. row.key] = row.max
+                rowMaxCache[mod.key .. "\0" .. row.key] = row.max
             end
         end
-        rowMaxCached = true
     end
-    return ROW_MAX[modKey .. "\0" .. rowKey] or 99
+    return rowMaxCache[modKey .. "\0" .. rowKey] or 1
 end
 
-local spellFrame = CreateFrame("Frame")
-spellFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+MR:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+    rowMaxCache = nil
+end)
 
-spellFrame:SetScript("OnEvent", function(_, _, unit, _, spellID)
+MR:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
     if unit ~= "player" then return end
     local entry = SPELL_ROWS[spellID]
     if not entry then return end
     local modKey, rowKey, amount = entry[1], entry[2], entry[3]
+    if not MR.db then return end
     MR:BumpProgress(modKey, rowKey, amount, GetRowMax(modKey, rowKey))
 end)
 
-local origSlash = SlashCmdList["MIDROUTE"]
-SlashCmdList["MIDROUTE"] = function(msg)
-    msg = (msg or ""):lower():trim()
-    if msg == "profs" then
-        print("|cff2ae7c6MTL Professions:|r Detected skill lines:")
-        local found = false
-        for sl, modKey in pairs(SKILL_TO_MODULES) do
-            if MR.playerProfessions[sl] then
-                print(string.format("  |cff00ff96✓|r skill %d → %s", sl, modKey))
-                found = true
-            end
-        end
-        if not found then
-            print("  |cffff4444None found.|r Run /mr profs after entering world.")
-        end
-    elseif msg == "testspell" then
-        print("|cff2ae7c6MTL:|r Listening for next profession KP spell cast...")
-        local tf = CreateFrame("Frame")
-        tf:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-        tf:SetScript("OnEvent", function(self, _, unit, _, sid)
-            if unit ~= "player" then return end
-            local e = SPELL_ROWS[sid]
-            if e then
-                print(string.format("|cff2ae7c6MTL:|r Spell %d → %s / %s (+%d KP) ✓ TRACKED", sid, e[1], e[2], e[3]))
-            else
-                print(string.format("|cff2ae7c6MTL:|r Spell %d cast (not a KP spell)", sid))
-            end
-            self:UnregisterAllEvents()
-        end)
-    else
-        origSlash(msg)
-    end
-end
-
 MR:RegisterModule({
-    key         = "prof_alchemy",
+    key           = "prof_alchemy",
     profSkillLine = 2906,
-    label       = "Alchemy",
-    labelColor  = "#33bbff",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Alchemy",
+    labelColor    = "#33bbff",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "alch_notebook",
-            spellTracked = true,
-            label = "|cff33bbffWeekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Alchemist's Notebook — from weekly profession trainer quest.\nUse the item; auto-tracked via spell cast. (item:263454)",
-        },
-        {
-            key   = "alch_drops",
-            spellTracked = true,
-            label = "|cff33bbffWeekly Drops – Spore/Cruor:|r",
-            max   = 2,
-            note  = "Lightbloomed Spore Sample x1 + Aged Cruor x1 .\nAuto-tracked when each is used. (items: 259188, 259189)",
-        },
-        {
-            key   = "alch_treatise",
-            spellTracked = true,
-            label = "|cff33bbffTreatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Alchemy — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245755)",
-        },
-        {
-            key      = "alch_dmf",
-            label    = "|cff33bbffDarkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: A Fizzy Fusion (quest:29506)\nAuto-tracked via quest completion.",
-            questIds = { 29506 },
-        },
+        { key = "alch_notebook", spellTracked = true, label = "|cff33bbffWeekly Quest:|r",              max = 1 },
+        { key = "alch_drops",    spellTracked = true, label = "|cff33bbffWeekly Drops – Spore/Cruor:|r", max = 2 },
+        { key = "alch_treatise", spellTracked = true, label = "|cff33bbffTreatise:|r",                   max = 1 },
+        { key = "alch_dmf",      questIds = { 29506 }, label = "|cff33bbffDarkmoon Faire:|r",            max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_blacksmithing",
+    key           = "prof_blacksmithing",
     profSkillLine = 2907,
-    label       = "Blacksmithing",
-    labelColor  = "#aaaaaa",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Blacksmithing",
+    labelColor    = "#aaaaaa",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "bs_notebook",
-            spellTracked = true,
-            label = "|cffaaaaaaWeekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Blacksmith's Journal — from weekly profession trainer quest.\nAuto-tracked when used. (item:263455)",
-        },
-        {
-            key   = "bs_drops",
-            spellTracked = true,
-            label = "|cffaaaaaaWeekly Drops – Oil/Stone:|r",
-            max   = 2,
-            note  = "Infused Quenching Oil x1 + Thalassian Whetstone x1 .\nAuto-tracked when each is used. (items: 259191, 259190)",
-        },
-        {
-            key   = "bs_treatise",
-            spellTracked = true,
-            label = "|cffaaaaaa Treatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Blacksmithing — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245763)\n[If not tracking: run /mr testspell then use the treatise to confirm spell ID]",
-        },
-        {
-            key      = "bs_dmf",
-            label    = "|cffaaaaaaDarkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: Baby Needs Two Pair of Shoes (quest:29508)\nAuto-tracked via quest completion.",
-            questIds = { 29508 },
-        },
+        { key = "bs_notebook", spellTracked = true, label = "|cffaaaaaaWeekly Quest:|r",           max = 1 },
+        { key = "bs_drops",    spellTracked = true, label = "|cffaaaaaaWeekly Drops – Oil/Stone:|r", max = 2 },
+        { key = "bs_treatise", spellTracked = true, label = "|cffaaaaaa Treatise:|r",               max = 1 },
+        { key = "bs_dmf",      questIds = { 29508 }, label = "|cffaaaaaa Darkmoon Faire:|r",        max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_enchanting",
+    key           = "prof_enchanting",
     profSkillLine = 2909,
-    label       = "Enchanting",
-    labelColor  = "#bb77ff",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Enchanting",
+    labelColor    = "#bb77ff",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "ench_notebook",
-            spellTracked = true,
-            label = "|cffbb77ffWeekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Enchanter's Folio — from weekly profession trainer quest.\nAuto-tracked when used. (item:263464)",
-        },
-        {
-            key   = "ench_drops",
-            spellTracked = true,
-            label = "|cffbb77ffWeekly Drops – Ashes/Vellum:|r",
-            max   = 2,
-            note  = "Voidstorm Ashes x1 + Lost Thalassian Vellum x1.\nAuto-tracked when each is used. (items: 259192, 259193)",
-        },
-        {
-            key   = "ench_de_essence",
-            spellTracked = true,
-            label = "|cffbb77ffDE – Arcane Essence:|r",
-            max   = 5,
-            note  = "Swirling Arcane Essence x5 — from disenchanting.\nAuto-tracked when each is used. (item:267654)",
-        },
-        {
-            key   = "ench_de_shard",
-            spellTracked = true,
-            label = "|cffbb77ffDE – Mana Shard:|r",
-            max   = 1,
-            note  = "Brimming Mana Shard — from disenchanting.\nAuto-tracked when used. (item:267655)",
-        },
-        {
-            key   = "ench_treatise",
-            spellTracked = true,
-            label = "|cffbb77ffTreatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Enchanting — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245759)",
-        },
-        {
-            key      = "ench_dmf",
-            label    = "|cffbb77ffDarkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: Putting Trash to Good Use (quest:29510)\nAuto-tracked via quest completion.",
-            questIds = { 29510 },
-        },
+        { key = "ench_notebook",   spellTracked = true, label = "|cffbb77ffWeekly Quest:|r",              max = 1 },
+        { key = "ench_drops",      spellTracked = true, label = "|cffbb77ffWeekly Drops – Ashes/Vellum:|r", max = 2 },
+        { key = "ench_de_essence", spellTracked = true, label = "|cffbb77ffDE – Arcane Essence:|r",        max = 5 },
+        { key = "ench_de_shard",   spellTracked = true, label = "|cffbb77ffDE – Mana Shard:|r",            max = 1 },
+        { key = "ench_treatise",   spellTracked = true, label = "|cffbb77ffTreatise:|r",                   max = 1 },
+        { key = "ench_dmf",        questIds = { 29510 }, label = "|cffbb77ffDarkmoon Faire:|r",            max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_engineering",
+    key           = "prof_engineering",
     profSkillLine = 2910,
-    label       = "Engineering",
-    labelColor  = "#ffcc44",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Engineering",
+    labelColor    = "#ffcc44",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "eng_notebook",
-            spellTracked = true,
-            label = "|cffffcc44Weekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Engineer's Notepad — from weekly profession trainer quest.\nAuto-tracked when used. (item:263456)",
-        },
-        {
-            key   = "eng_drops",
-            spellTracked = true,
-            label = "|cffffcc44Weekly Drops – Gear/Capacitor:|r",
-            max   = 2,
-            note  = "Dance Gear x1 + Dawn Capacitor x1.\nAuto-tracked when each is used. (items: 259194, 259195)",
-        },
-        {
-            key   = "eng_treatise",
-            spellTracked = true,
-            label = "|cffffcc44Treatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Engineering — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245809)",
-        },
-        {
-            key      = "eng_dmf",
-            label    = "|cffffcc44Darkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: Talkin' Tonks (quest:29511)\nAuto-tracked via quest completion.",
-            questIds = { 29511 },
-        },
+        { key = "eng_notebook", spellTracked = true, label = "|cffffcc44Weekly Quest:|r",                   max = 1 },
+        { key = "eng_drops",    spellTracked = true, label = "|cffffcc44Weekly Drops – Gear/Capacitor:|r",   max = 2 },
+        { key = "eng_treatise", spellTracked = true, label = "|cffffcc44Treatise:|r",                        max = 1 },
+        { key = "eng_dmf",      questIds = { 29511 }, label = "|cffffcc44Darkmoon Faire:|r",                 max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_herbalism",
+    key           = "prof_herbalism",
     profSkillLine = 2912,
-    label       = "Herbalism",
-    labelColor  = "#55cc44",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Herbalism",
+    labelColor    = "#55cc44",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "herb_notebook",
-            spellTracked = true,
-            label = "|cff55cc44Weekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Herbalist's Notes — from weekly profession trainer quest.\nAuto-tracked when used. (item:263462)",
-        },
-        {
-            key   = "herb_drops",
-            spellTracked = true,
-            label = "|cff55cc44Weekly Gather – Phoenix Plumes:|r",
-            max   = 5,
-            note  = "Thalassian Phoenix Plume x5.\nAuto-tracked when each is used. (item:238465)",
-        },
-        {
-            key   = "herb_tail",
-            spellTracked = true,
-            label = "|cff55cc44Weekly Gather – Phoenix Tail:|r",
-            max   = 1,
-            note  = "Thalassian Phoenix Tail x1.\nAuto-tracked when used. (item:238466)",
-        },
-        {
-            key   = "herb_treatise",
-            spellTracked = true,
-            label = "|cff55cc44Treatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Herbalism — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245761)",
-        },
-        {
-            key      = "herb_dmf",
-            label    = "|cff55cc44Darkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: Herbs for Healing (quest:29514)\nAuto-tracked via quest completion.",
-            questIds = { 29514 },
-        },
+        { key = "herb_notebook", spellTracked = true, label = "|cff55cc44Weekly Quest:|r",                     max = 1 },
+        { key = "herb_drops",    spellTracked = true, label = "|cff55cc44Weekly Gather – Phoenix Plumes:|r",    max = 5 },
+        { key = "herb_tail",     spellTracked = true, label = "|cff55cc44Weekly Gather – Phoenix Tail:|r",      max = 1 },
+        { key = "herb_treatise", spellTracked = true, label = "|cff55cc44Treatise:|r",                          max = 1 },
+        { key = "herb_dmf",      questIds = { 29514 }, label = "|cff55cc44Darkmoon Faire:|r",                   max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_inscription",
+    key           = "prof_inscription",
     profSkillLine = 2913,
-    label       = "Inscription",
-    labelColor  = "#44ddaa",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Inscription",
+    labelColor    = "#44ddaa",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "insc_notebook",
-            spellTracked = true,
-            label = "|cff44ddaaWeekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Scribe's Journal — from weekly profession trainer quest.\nAuto-tracked when used. (item:263457)",
-        },
-        {
-            key   = "insc_drops",
-            spellTracked = true,
-            label = "|cff44ddaaWeekly Drops – Ink/Rune:|r",
-            max   = 2,
-            note  = "Brilliant Phoenix Ink x1 + Loa-Blessed Rune x1.\nAuto-tracked when each is used. (items: 259196, 259197)",
-        },
-        {
-            key   = "insc_treatise",
-            spellTracked = true,
-            label = "|cff44ddaaTreatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Inscription — self-crafted (Warbound).\nAuto-tracked when used. (item:245757)",
-        },
-        {
-            key      = "insc_dmf",
-            label    = "|cff44ddaaDarkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: Writing the Future (quest:29515)\nAuto-tracked via quest completion.",
-            questIds = { 29515 },
-        },
+        { key = "insc_notebook", spellTracked = true, label = "|cff44ddaaWeekly Quest:|r",          max = 1 },
+        { key = "insc_drops",    spellTracked = true, label = "|cff44ddaaWeekly Drops – Ink/Rune:|r", max = 2 },
+        { key = "insc_treatise", spellTracked = true, label = "|cff44ddaaTreatise:|r",               max = 1 },
+        { key = "insc_dmf",      questIds = { 29515 }, label = "|cff44ddaaDarkmoon Faire:|r",        max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_jewelcrafting",
+    key           = "prof_jewelcrafting",
     profSkillLine = 2914,
-    label       = "Jewelcrafting",
-    labelColor  = "#ff7799",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Jewelcrafting",
+    labelColor    = "#ff7799",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "jc_notebook",
-            spellTracked = true,
-            label = "|cffff7799Weekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Jewelcrafter's Notebook — from weekly profession quest.\nAuto-tracked when used. (item:263458)",
-        },
-        {
-            key   = "jc_drops",
-            spellTracked = true,
-            label = "|cffff7799Weekly Drops – Gems/Stone:|r",
-            max   = 2,
-            note  = "Void-Touched Diamond Fragments x1 + Harandar Stone Sample x1.\nAuto-tracked when each is used. (items: 259198, 259199)",
-        },
-        {
-            key   = "jc_treatise",
-            spellTracked = true,
-            label = "|cffff7799Treatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Jewelcrafting — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245760)",
-        },
-        {
-            key      = "jc_dmf",
-            label    = "|cffff7799Darkmoon Faire  –  1 KP:|r",
-            max      = 1,
-            note     = "Quest: Keeping the Faire Sparkling (quest:29516)\nAuto-tracked via quest completion.",
-            questIds = { 29516 },
-        },
+        { key = "jc_notebook", spellTracked = true, label = "|cffff7799Weekly Quest:|r",               max = 1 },
+        { key = "jc_drops",    spellTracked = true, label = "|cffff7799Weekly Drops – Gems/Stone:|r",   max = 2 },
+        { key = "jc_treatise", spellTracked = true, label = "|cffff7799Treatise:|r",                    max = 1 },
+        { key = "jc_dmf",      questIds = { 29516 }, label = "|cffff7799Darkmoon Faire:|r",             max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_leatherworking",
+    key           = "prof_leatherworking",
     profSkillLine = 2915,
-    label       = "Leatherworking",
-    labelColor  = "#cc8833",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Leatherworking",
+    labelColor    = "#cc8833",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "lw_notebook",
-            spellTracked = true,
-            label = "|cffcc8833Weekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Leatherworker's Journal — from weekly profession trainer quest.\nAuto-tracked when used. (item:263459)",
-        },
-        {
-            key   = "lw_drops",
-            spellTracked = true,
-            label = "|cffcc8833Weekly Drops – Oil:|r",
-            max   = 2,
-            note  = "Amani Tanning Oil x1 + Thalassian Mana Oil x1.\nAuto-tracked when each is used. (items: 259200, 259201)",
-        },
-        {
-            key   = "lw_treatise",
-            spellTracked = true,
-            label = "|cffcc8833Treatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Leatherworking — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245758)",
-        },
-        {
-            key      = "lw_dmf",
-            label    = "|cffcc8833Darkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: Eyes on the Prizes (quest:29517)\nAuto-tracked via quest completion.",
-            questIds = { 29517 },
-        },
+        { key = "lw_notebook", spellTracked = true, label = "|cffcc8833Weekly Quest:|r",        max = 1 },
+        { key = "lw_drops",    spellTracked = true, label = "|cffcc8833Weekly Drops – Oil:|r",  max = 2 },
+        { key = "lw_treatise", spellTracked = true, label = "|cffcc8833Treatise:|r",            max = 1 },
+        { key = "lw_dmf",      questIds = { 29517 }, label = "|cffcc8833Darkmoon Faire:|r",     max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_mining",
+    key           = "prof_mining",
     profSkillLine = 2916,
-    label       = "Mining",
-    labelColor  = "#cccccc",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Mining",
+    labelColor    = "#cccccc",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "mine_notebook",
-            spellTracked = true,
-            label = "|cffccccccWeekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Miner's Notes — from weekly profession trainer quest.\nAuto-tracked when used. (item:263463)",
-        },
-        {
-            key   = "mine_rock",
-            spellTracked = true,
-            label = "|cffccccccWeekly Gather – Rock Specimens:|r",
-            max   = 5,
-            note  = "Igneous Rock Specimen x5.\nAuto-tracked when each is used. (item:237496)",
-        },
-        {
-            key   = "mine_nodule",
-            spellTracked = true,
-            label = "|cffccccccWeekly Gather – Septarian Nodule:|r",
-            max   = 1,
-            note  = "Septarian Nodule x1.\nAuto-tracked when used. (item:237506)",
-        },
-        {
-            key   = "mine_treatise",
-            spellTracked = true,
-            label = "|cffccccccTreatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Mining — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245762)",
-        },
-        {
-            key      = "mine_dmf",
-            label    = "|cffccccccDarkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: Rearm, Reuse, Recycle (quest:29518)\nAuto-tracked via quest completion.",
-            questIds = { 29518 },
-        },
+        { key = "mine_notebook", spellTracked = true, label = "|cffccccccWeekly Quest:|r",                  max = 1 },
+        { key = "mine_rock",     spellTracked = true, label = "|cffccccccWeekly Gather – Rock Specimens:|r", max = 5 },
+        { key = "mine_nodule",   spellTracked = true, label = "|cffccccccWeekly Gather – Septarian Nodule:|r", max = 1 },
+        { key = "mine_treatise", spellTracked = true, label = "|cffccccccTreatise:|r",                       max = 1 },
+        { key = "mine_dmf",      questIds = { 29518 }, label = "|cffccccccDarkmoon Faire:|r",                max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_skinning",
+    key           = "prof_skinning",
     profSkillLine = 2917,
-    label       = "Skinning",
-    labelColor  = "#c8a060",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Skinning",
+    labelColor    = "#c8a060",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "skin_notebook",
-            spellTracked = true,
-            label = "|cffc8a060Weekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Skinner's Notes — from weekly profession quest.\nAuto-tracked when used. (item:263461)",
-        },
-        {
-            key   = "skin_drops",
-            spellTracked = true,
-            label = "|cffc8a060Weekly Gather – Hide/Sample:|r",
-            max   = 5,
-            note  = "Manafused Sample OR Fine Void-Tempered Hide x5.\nAuto-tracked when each is used. (items: 238627, 238625)",
-        },
-        {
-            key   = "skin_bone",
-            spellTracked = true,
-            label = "|cffc8a060Weekly Gather – Mana-Infused Bone:|r",
-            max   = 1,
-            note  = "Mana-Infused Bone x1.\nAuto-tracked when used. (item:238626)",
-        },
-        {
-            key   = "skin_treatise",
-            spellTracked = true,
-            label = "|cffc8a060Treatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Skinning — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245828)",
-        },
-        {
-            key      = "skin_dmf",
-            label    = "|cffc8a060Darkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: Tan My Hide (quest:29519)\nAuto-tracked via quest completion.",
-            questIds = { 29519 },
-        },
+        { key = "skin_notebook", spellTracked = true, label = "|cffc8a060Weekly Quest:|r",                      max = 1 },
+        { key = "skin_drops",    spellTracked = true, label = "|cffc8a060Weekly Gather – Hide/Sample:|r",        max = 5 },
+        { key = "skin_bone",     spellTracked = true, label = "|cffc8a060Weekly Gather – Mana-Infused Bone:|r",  max = 1 },
+        { key = "skin_treatise", spellTracked = true, label = "|cffc8a060Treatise:|r",                           max = 1 },
+        { key = "skin_dmf",      questIds = { 29519 }, label = "|cffc8a060Darkmoon Faire:|r",                    max = 1 },
     },
 })
 
 MR:RegisterModule({
-    key         = "prof_tailoring",
+    key           = "prof_tailoring",
     profSkillLine = 2918,
-    label       = "Tailoring",
-    labelColor  = "#ffaadd",
-    resetType   = "weekly",
-    defaultOpen = false,
+    label         = "Tailoring",
+    labelColor    = "#ffaadd",
+    resetType     = "weekly",
+    defaultOpen   = false,
     rows = {
-        {
-            key   = "tail_notebook",
-            spellTracked = true,
-            label = "|cffffaaddWeekly Quest:|r",
-            max   = 1,
-            note  = "Thalassian Tailor's Notebook — from weekly profession quest.\nAuto-tracked when used. (item:263460)",
-        },
-        {
-            key   = "tail_drops",
-            spellTracked = true,
-            label = "|cffffaaddWeekly Drops – Collar/Memento:|r",
-            max   = 2,
-            note  = "Finely Woven Lynx Collar x1 + Embroidered Memento x1.\nAuto-tracked when each is used. (items: 259203, 259202)",
-        },
-        {
-            key   = "tail_treatise",
-            spellTracked = true,
-            label = "|cffffaaddTreatise:|r",
-            max   = 1,
-            note  = "Thalassian Treatise on Tailoring — crafted by Inscription (Warbound).\nAuto-tracked when used. (item:245756)",
-        },
-        {
-            key      = "tail_dmf",
-            label    = "|cffffaaddDarkmoon Faire:|r",
-            max      = 1,
-            note     = "Quest: Banners, Banners Everywhere! (quest:29520)\nAuto-tracked via quest completion.",
-            questIds = { 29520 },
-        },
+        { key = "tail_notebook", spellTracked = true, label = "|cffffaaddWeekly Quest:|r",              max = 1 },
+        { key = "tail_drops",    spellTracked = true, label = "|cffffaaddWeekly Drops – Collar/Memento:|r", max = 2 },
+        { key = "tail_treatise", spellTracked = true, label = "|cffffaaddTreatise:|r",                   max = 1 },
+        { key = "tail_dmf",      questIds = { 29520 }, label = "|cffffaaddDarkmoon Faire:|r",            max = 1 },
     },
 })

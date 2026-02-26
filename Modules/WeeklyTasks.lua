@@ -1,48 +1,38 @@
 MR:RegisterModule({
-    key          = "s1_weekly",
-    label        = "Season 1 Weeklies",
-    labelColor   = "#2ae7c6",
-    resetType    = "weekly",
-    defaultOpen  = true,
+    key         = "s1_weekly",
+    label       = "Season 1 Weeklies",
+    labelColor  = "#2ae7c6",
+    resetType   = "weekly",
+    defaultOpen = true,
     rows = {
-
         {
             key      = "abundance",
-            label    = "Weekly: Abundance",
+            label    = "|cff2ae7c6Weekly: Abundance:|r",
             max      = 1,
-            note     = "Earn 20,000 points in Abundance.\nAuto-tracked via quest completion.",
             questIds = { 89507 },
         },
-
         {
             key      = "lost_legends",
-            label    = "Lost Legends",
+            label    = "|cff2ae7c6Lost Legends:|r",
             max      = 1,
-            note     = "Select a relic to pursue in Harandar.\nRewards Avid Learner's Supply Pack.",
             questIds = { 89268 },
         },
-
         {
             key      = "high_esteem",
-            label    = "High Esteem",
+            label    = "|cff2ae7c6High Esteem:|r",
             max      = 1,
-            note     = "Choose a faction ally for Saltheril's Soiree.\nDetermines which Fortify quest is available this week.",
             questIds = { 91629 },
         },
         {
             key      = "fortify_runestones",
-            label    = "Fortify the Runestones",
+            label    = "|cff2ae7c6Fortify the Runestones:|r",
             max      = 1,
-            note     = "Collect Latent Arcana & defend a Runestone.\nOnly one faction quest is active per week:\n  Farstriders (90575), Shades of the Row (90576),\n  Blood Knights (90574), Magisters (90573).\nAuto-tracked — whichever your warband has will tick.",
-
             questIds = { 90575, 90576, 90574, 90573 },
         },
-
         {
             key      = "stand_your_ground",
-            label    = "Stand Your Ground",
+            label    = "|cff2ae7c6Stand Your Ground:|r",
             max      = 1,
-            note     = "Weekly quest in Eversong Woods.\nAuto-tracked via quest completion.",
             questIds = { 94581 },
         },
     },

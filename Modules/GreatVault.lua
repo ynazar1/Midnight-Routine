@@ -41,7 +41,7 @@ MR:RegisterModule({
         local activities = C_WeeklyRewards.GetActivities()
         if not activities then return end
 
-        local db = MidnightRoutineDB.progress
+        local db = MR.db.char.progress
         if not db[mod.key] then db[mod.key] = {} end
         local vd = db[mod.key]
 
@@ -186,44 +186,3 @@ MR:RegisterModule({
     },
 })
 
-local _origScan = MR.ScanQuests
-MR.ScanQuests = function(self)
-    _origScan(self)
-
-    for _, mod in ipairs(self.modules) do
-        if mod.onScan then mod.onScan(mod) end
-    end
-
-    local db = MidnightRoutineDB.progress
-    for _, mod in ipairs(self.modules) do
-        local mdb = db[mod.key]
-        if mdb then
-            for _, row in ipairs(mod.rows) do
-                if row.liveKey and mdb[row.liveKey] then
-                    mdb[row.key] = math.min(mdb[row.liveKey], row.max)
-                end
-                if row.liveTierLabelKey and mdb[row.liveTierLabelKey] then
-                    row.vaultLabel = mdb[row.liveTierLabelKey]
-                end
-                if row.liveTierColorKey and mdb[row.liveTierColorKey] then
-                    row.vaultColor = mdb[row.liveTierColorKey]
-                end
-            end
-        end
-    end
-
-    self:RefreshUI()
-end
-
-local vaultEvents = CreateFrame("Frame")
-vaultEvents:RegisterEvent("CHALLENGE_MODE_COMPLETED")
-vaultEvents:RegisterEvent("ENCOUNTER_END")
-vaultEvents:RegisterEvent("WEEKLY_REWARDS_UPDATE")
-
-vaultEvents:SetScript("OnEvent", function(_, event, ...)
-    if event == "ENCOUNTER_END" then
-        local success = select(5, ...)
-        if success ~= 1 then return end
-    end
-    C_Timer.After(1.5, function() MR:ScanQuests() end)
-end)
