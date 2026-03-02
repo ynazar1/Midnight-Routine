@@ -239,6 +239,13 @@ function MR:BuildUI()
 
     local function ApplyMinimizeState()
         if MR.db.profile.minimized then
+            local left = f:GetLeft()
+            local top  = f:GetTop()
+            if left and top then
+                f:ClearAllPoints()
+                f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+                MR.db.profile.position = { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top }
+            end
             if MR.scroll       then MR.scroll:Hide()       end
             if MR._scrollBg    then MR._scrollBg:Hide()    end
             if MR._scrollTrack then MR._scrollTrack:Hide() end
@@ -673,34 +680,7 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW)
     dot:SetPoint("LEFT", rowFrame, "LEFT", PADDING, 0)
     SetDotColor(dot, done, row.max)
 
-    if row.questIds then
-        local star = rowFrame:CreateTexture(nil, "OVERLAY")
-        star:SetSize(7, 7)
-        star:SetPoint("LEFT", rowFrame, "LEFT", PADDING, 4)
-        star:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-        star:SetAlpha(0.45)
-    elseif row.liveKey then
-        local star = rowFrame:CreateTexture(nil, "OVERLAY")
-        star:SetSize(7, 7)
-        star:SetPoint("LEFT", rowFrame, "LEFT", PADDING, 4)
-        star:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-        star:SetVertexColor(0.2, 0.6, 1)
-        star:SetAlpha(0.55)
-    elseif row.spellId then
-        local star = rowFrame:CreateTexture(nil, "OVERLAY")
-        star:SetSize(7, 7)
-        star:SetPoint("LEFT", rowFrame, "LEFT", PADDING, 4)
-        star:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-        star:SetVertexColor(0.8, 0.4, 1)
-        star:SetAlpha(0.55)
-    elseif row.currencyId then
-        local star = rowFrame:CreateTexture(nil, "OVERLAY")
-        star:SetSize(7, 7)
-        star:SetPoint("LEFT", rowFrame, "LEFT", PADDING, 4)
-        star:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-        star:SetVertexColor(1, 0.8, 0.2)
-        star:SetAlpha(0.55)
-    end
+
 
     local lbl = rowFrame:CreateFontString(nil, "OVERLAY")
     lbl:SetFont(FONT_ROWS, GetFontSize(), "OUTLINE")
