@@ -10,6 +10,7 @@ local DEFAULTS = {
     profile = {
         locked          = false,
         scale           = 1.0,
+        frameAlpha      = 1.0,
         hideComplete    = true,
         transparentMode = false,
         width           = 260,
@@ -20,7 +21,23 @@ local DEFAULTS = {
         modules         = {},
         moduleOrder     = {},
         position        = { point = "CENTER", x = 0, y = 0 },
-        headerColors    = {}, 
+        renownOpen          = false,
+        renownPos           = nil,
+        renownLocked        = false,
+        renownWidth         = 280,
+        renownBarH          = 18,
+        renownAlpha         = 1.0,
+        renownShowRep       = true,
+        renownShowIcons     = true,
+        renownShimmer       = true,
+        renownHideMaxed     = false,
+        renownHiddenFactions = {},
+        renownColors         = {},
+        renownOrder          = {},
+        renownCompact        = false,
+        renownScale          = 1.0,
+        renownShowLevel      = true,
+        headerColors    = {},
     },
     char = {
         progress = {},
@@ -238,9 +255,15 @@ function MR:Scan()
             if row.currencyId then
                 local info = C_CurrencyInfo.GetCurrencyInfo(row.currencyId)
                 if info then
-                    local raw = (info.maxWeeklyQuantity and info.maxWeeklyQuantity > 0)
-                        and info.quantityEarnedThisWeek
-                        or  info.quantity
+                    local hasWeeklyCap = info.maxWeeklyQuantity and info.maxWeeklyQuantity > 0
+                    local raw
+                    if hasWeeklyCap then
+                        raw = info.quantityEarnedThisWeek
+                    elseif row.max and info.quantity >= row.max then
+                        raw = row.max
+                    else
+                        raw = info.quantity
+                    end
                     local val = row.noMax and raw or math.min(raw, row.max or raw)
                     if WriteProgress(progress, mod.key, row.key, val) then dirty = true end
                 end
@@ -316,17 +339,29 @@ function MR:OnEnable()
         "TRADE_SKILL_SHOW",
     }, 1, "OnProfessionChange")
 
+    self:RegisterBucketEvent({
+        "ZONE_CHANGED_NEW_AREA",
+        "ZONE_CHANGED",
+    }, 0.5, "OnZoneChanged")
+
     self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", "OnSpellCast")
     self:RegisterEvent("CHALLENGE_MODE_COMPLETED", "OnVaultEvent")
     self:RegisterEvent("ENCOUNTER_END",            "OnEncounterEnd")
     self:RegisterEvent("WEEKLY_REWARDS_UPDATE",    "OnVaultEvent")
     self:RegisterEvent("PLAYER_ENTERING_WORLD",    "OnEnteringWorld")
+
 end
 
 function MR:OnEnteringWorld()
     self:CheckWeeklyReset()
     self:RefreshPlayerProfessions()
     self:BuildSpellIndex()
+
+    if not self.db.profile.firstSeen then
+        self.db.profile.panelOpen  = false
+        self.db.profile.renownOpen = false
+    end
+
     if not self.frame then
         self:BuildUI()
     else
@@ -334,6 +369,17 @@ function MR:OnEnteringWorld()
     end
     if self.frame and self.db.profile.panelOpen == false then
         self.frame:Hide()
+    end
+    self:MaybeShowWelcomeScreen()
+    if self.OnRenownUpdate then
+        self:RegisterEvent("MAJOR_FACTION_RENOWN_LEVEL_CHANGED", "OnRenownUpdate")
+        self:RegisterBucketEvent({
+            "UPDATE_FACTION",
+            "COMBAT_TEXT_UPDATE",
+        }, 1, "OnRenownUpdate")
+    end
+    if self.db.profile.renownOpen and self.ToggleRenown then
+        self:ScheduleTimer(function() self:ToggleRenown() end, 1.5)
     end
     self:ScheduleTimer(function()
         self:RefreshPlayerProfessions()
@@ -356,6 +402,10 @@ end
 
 function MR:OnVaultEvent()
     self:ScheduleTimer(function() self:Scan() end, 1.5)
+end
+
+function MR:OnZoneChanged()
+    self:RefreshUI()
 end
 
 function MR:OnEncounterEnd(_, _, _, _, _, success)
@@ -394,8 +444,11 @@ SlashCmdList["MIDROUTE"] = function(msg)
             if MR.frame then MR.frame:SetScale(s) end
         end
     elseif msg == "big"   then if MR.ApplyWidth then MR.ApplyWidth(500) end
-    elseif msg == "small" then if MR.ApplyWidth then MR.ApplyWidth(200) end
+    elseif msg == "small"   then if MR.ApplyWidth then MR.ApplyWidth(200) end
+    elseif msg == "welcome" then MR:ShowWelcomeScreen()
+    elseif msg == "renown"  then MR:ToggleRenown()
+    elseif msg == "renown config" then MR:ToggleRenownConfig()
     else
-        print("|cff2ae7c6/mr|r commands: show, hide, lock, unlock, reset, minimap, scale <0.5-2>, big, small")
+        print("|cff2ae7c6/mr|r commands: show, hide, lock, unlock, reset, minimap, scale <0.5-2>, big, small, welcome, renown")
     end
 end

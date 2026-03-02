@@ -21,19 +21,20 @@ Libs/AceDB-3.0/AceDB-3.0.xml
 Libs/LibDataBroker-1.1/LibDataBroker-1.1.lua
 Libs/LibDBIcon-1.0/LibDBIcon-1.0.lua
 
+Theme.lua
 Core.lua
 
 Modules/WeeklyTasks.lua
 Modules/PvP.lua
 Modules/GreatVault.lua
 Modules/Crests.lua
-Modules/CofferKeyShards.lua
 Modules/Professions.lua
 Modules/Delves.lua
 Modules/Prey.lua
 Modules/StoryCampaign.lua
-Modules/LFR.lua
+Modules/WorldEvents.lua
+Modules/Renown.lua
 
 UI.lua
+WelcomeScreen.lua
 MinimapButton.lua
-

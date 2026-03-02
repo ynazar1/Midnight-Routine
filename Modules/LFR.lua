@@ -1,6 +1,6 @@
 MR:RegisterModule({
     key         = "lfr_s1",
-    label       = "LFR – Season 1 Raid",
+    label       = "Raid",
     labelColor  = "#99ccff",
     resetType   = "weekly",
     defaultOpen = false,

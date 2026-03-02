@@ -2,8 +2,8 @@ local cfgFrame
 
 local PANEL_MIN_WIDTH = 200
 local PANEL_MAX_WIDTH = 500
-local FONT_ROWS       = "Fonts\\FRIZQT__.TTF"
-local FONT_HEADERS    = "Fonts\\FRIZQT__.TTF"
+local FONT_ROWS    = MR_FONT_ROWS
+local FONT_HEADERS = MR_FONT_HEADERS
 
 local FONT_SIZE_MIN = 7
 local FONT_SIZE_MAX = 20
@@ -12,12 +12,7 @@ local ROW_HEIGHT    = 18
 local HEADER_HEIGHT = 18
 local PADDING       = 6
 
-local function GetFontSize()
-    if MR.db and MR.db.profile and MR.db.profile.fontSize then
-        return MR.db.profile.fontSize
-    end
-    return 11
-end
+local GetFontSize = MR_GetFontSize
 
 local function RecalcLayout()
     local fs = GetFontSize()
@@ -26,34 +21,27 @@ local function RecalcLayout()
     PADDING       = math.max(4, math.floor(fs * 0.55))
 end
 
-local function hex(h)
-    h = h:gsub("#","")
-    return tonumber(h:sub(1,2),16)/255,
-           tonumber(h:sub(3,4),16)/255,
-           tonumber(h:sub(5,6),16)/255
-end
+local hex = MR_HEX
 
-local COL = {
-    complete   = {0,    1,    0.59},
-    half       = {1,    0.47, 0   },
-    incomplete = {0.6,  0.6,  0.6 },
-    bg         = {0.02, 0.03, 0.07, 0.96},
-}
+local COL = MR_COL
 
 local function ApplyTheme()
     if not MR.frame then return end
     local t = MR.db.profile.transparentMode
+    local v = MR.db.profile.frameAlpha or 1.0
     local f = MR.frame
     if t then
         f:SetBackdropColor(0, 0, 0, 0)
-        f:SetBackdropBorderColor(0.3, 0.6, 0.8, 0.25)
-        if MR._titleBar then MR._titleBar:SetBackdropColor(0.02, 0.18, 0.35, 0.45) end
-        if MR._scrollBg then MR._scrollBg:SetColorTexture(0, 0, 0, 0) end
+        f:SetBackdropBorderColor(0.3, 0.6, 0.8, 0.25 * v)
+        if MR._titleBar    then MR._titleBar:SetBackdropColor(0.02, 0.18, 0.35, 0.45 * v) end
+        if MR._scrollBg    then MR._scrollBg:SetColorTexture(0, 0, 0, 0) end
+        if MR._titleAccent then MR._titleAccent:SetAlpha(v) end
     else
-        f:SetBackdropColor(COL.bg[1], COL.bg[2], COL.bg[3], COL.bg[4])
-        f:SetBackdropBorderColor(0.15, 0.15, 0.2, 1)
-        if MR._titleBar then MR._titleBar:SetBackdropColor(0.05, 0.12, 0.22, 1) end
-        if MR._scrollBg then MR._scrollBg:SetColorTexture(COL.bg[1], COL.bg[2], COL.bg[3], 0.96) end
+        f:SetBackdropColor(COL.bg[1], COL.bg[2], COL.bg[3], COL.bg[4] * v)
+        f:SetBackdropBorderColor(0.15, 0.15, 0.2, v)
+        if MR._titleBar    then MR._titleBar:SetBackdropColor(0.05, 0.12, 0.22, v) end
+        if MR._scrollBg    then MR._scrollBg:SetColorTexture(COL.bg[1], COL.bg[2], COL.bg[3], 0.96 * v) end
+        if MR._titleAccent then MR._titleAccent:SetAlpha(v) end
     end
 end
 
@@ -61,7 +49,6 @@ local function ApplyWidth(newW)
     newW = math.max(PANEL_MIN_WIDTH, math.min(PANEL_MAX_WIDTH, math.floor(newW)))
     MR.db.profile.width = newW
     if MR.frame then MR.frame:SetWidth(newW) end
-    if MR.content then MR.content:SetWidth(newW - 13) end
     MR:RefreshUI()
 end
 MR.ApplyWidth = ApplyWidth
@@ -74,154 +61,9 @@ local function ApplyFontSize(newSize)
 end
 MR.ApplyFontSize = ApplyFontSize
 
-local function WC(rrggbb, text)
-    return string.format("|cff%s%s|r", rrggbb, text)
-end
-
-local function countColor(done, max)
-    if     done >= max then return COL.complete[1],   COL.complete[2],   COL.complete[3]
-    elseif done  > 0   then return COL.half[1],       COL.half[2],       COL.half[3]
-    else                    return COL.incomplete[1], COL.incomplete[2], COL.incomplete[3]
-    end
-end
-
-local function SetDotColor(tex, done, max)
-    if     done >= max then tex:SetColorTexture(COL.complete[1], COL.complete[2], COL.complete[3], 1)
-    elseif done  > 0   then tex:SetColorTexture(COL.half[1],     COL.half[2],     COL.half[3],     1)
-    else                    tex:SetColorTexture(0.3, 0.3, 0.3, 1)
-    end
-end
-
-local DRAG = { active = false }
-
-local dragUpdater = CreateFrame("Frame")
-dragUpdater:SetScript("OnUpdate", function()
-    if not DRAG.active then return end
-    local cx, cy = GetCursorPosition()
-    local s = UIParent:GetEffectiveScale()
-    cx, cy = cx / s, cy / s
-    if DRAG.ghost then
-        DRAG.ghost:ClearAllPoints()
-        DRAG.ghost:SetPoint("LEFT", UIParent, "BOTTOMLEFT", cx + 12, cy)
-    end
-    local sections = DRAG.sections
-    if not sections or #sections == 0 then return end
-    local bestSlot = #sections
-    local bestDist = math.huge
-    local slot0Y = sections[1].frame:GetTop() or cy
-    local d = math.abs(cy - slot0Y)
-    if d < bestDist then bestDist = d; bestSlot = 0 end
-    for i, sec in ipairs(sections) do
-        local slotY = sec.frame:GetBottom() or cy
-        d = math.abs(cy - slotY)
-        if d < bestDist then bestDist = d; bestSlot = i end
-    end
-    DRAG.targetSlot = bestSlot
-    if DRAG.dropLine and MR.content then
-        local slotY
-        if bestSlot == 0 then
-            slotY = sections[1] and sections[1].frame:GetTop() or cy
-        else
-            local sec = sections[bestSlot]
-            slotY = sec and (sec.frame:GetBottom() or cy) or cy
-        end
-        local cL = MR.content:GetLeft()  or 0
-        local cR = MR.content:GetRight() or (cL + (MR.db.profile.width or 260))
-        DRAG.dropLine:ClearAllPoints()
-        DRAG.dropLine:SetPoint("TOPLEFT",  UIParent, "BOTTOMLEFT", cL, slotY)
-        DRAG.dropLine:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", cR, slotY)
-        DRAG.dropLine:Show()
-    end
-end)
-
-local function CommitSectionDrop()
-    local modKey   = DRAG.modKey
-    local slot     = DRAG.targetSlot
-    local sections = DRAG.sections
-    if not modKey or slot == nil or not sections then return end
-    local order  = {}
-    local srcIdx = nil
-    for i, sec in ipairs(sections) do
-        table.insert(order, sec.modKey)
-        if sec.modKey == modKey then srcIdx = i end
-    end
-    if not srcIdx then return end
-    table.remove(order, srcIdx)
-    local insertAt = slot
-    if srcIdx <= slot then insertAt = insertAt - 1 end
-    insertAt = math.max(0, math.min(insertAt, #order))
-    table.insert(order, insertAt + 1, modKey)
-    MR:SetModuleOrder(order)
-    MR:RefreshUI()
-    if cfgFrame and cfgFrame:IsShown() then
-        MR:PopulateConfigFrame(cfgFrame)
-    end
-end
-
-local function StopDrag()
-    if not DRAG.active then return end
-    DRAG.active = false
-    CommitSectionDrop()
-    if DRAG.ghost      then DRAG.ghost:Hide()      end
-    if DRAG.dropLine   then DRAG.dropLine:Hide()   end
-    if DRAG.catchFrame then DRAG.catchFrame:Hide() end
-    DRAG.modKey = nil; DRAG.targetSlot = nil; DRAG.sections = nil
-end
-
-local function StartSectionDrag(modKey, labelText)
-    if DRAG.active then StopDrag() end
-    local sections = {}
-    for _, s in ipairs(MR.sectionRegistry or {}) do
-        local top = s.frame:GetTop()
-        table.insert(sections, { frame = s.frame, modKey = s.modKey, top = top or 0 })
-    end
-    table.sort(sections, function(a, b) return a.top > b.top end)
-    if #sections == 0 then return end
-    DRAG.active     = true
-    DRAG.modKey     = modKey
-    DRAG.sections   = sections
-    DRAG.targetSlot = #sections
-    if not DRAG.ghost then
-        local w = MR.db.profile.width or 260
-        local g = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-        g:SetSize(w - 10, HEADER_HEIGHT)
-        g:SetFrameStrata("TOOLTIP")
-        g:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-        g:SetBackdropColor(0.04, 0.25, 0.25, 0.92)
-        g:SetBackdropBorderColor(0.2, 0.85, 0.65, 1)
-        local fs = g:CreateFontString(nil, "OVERLAY")
-        fs:SetFont(FONT_HEADERS, 10, "OUTLINE")
-        fs:SetPoint("LEFT", g, "LEFT", 8, 0)
-        fs:SetTextColor(0.2, 0.9, 0.7)
-        g.label = fs
-        DRAG.ghost = g
-    end
-    DRAG.ghost.label:SetText(labelText)
-    DRAG.ghost:Show()
-    if not DRAG.dropLine then
-        local dl = CreateFrame("Frame", nil, UIParent)
-        dl:SetHeight(2)
-        dl:SetFrameStrata("TOOLTIP")
-        local t = dl:CreateTexture(nil, "OVERLAY")
-        t:SetAllPoints()
-        t:SetColorTexture(0.2, 0.9, 0.7, 1)
-        DRAG.dropLine = dl
-    end
-    DRAG.dropLine:Show()
-    if not DRAG.catchFrame then
-        local cb = CreateFrame("Button", nil, UIParent)
-        cb:SetFrameStrata("FULLSCREEN_DIALOG")
-        cb:SetAllPoints(UIParent)
-        cb:EnableMouse(true)
-        cb:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp")
-        cb:SetScript("OnClick", function() StopDrag() end)
-        cb:SetScript("OnHide",  function() if DRAG.active then StopDrag() end end)
-        cb:SetAlpha(0)
-        DRAG.catchFrame = cb
-    end
-    DRAG.catchFrame:Show()
-    DRAG.catchFrame:Raise()
-end
+local WC          = MR_WC
+local countColor  = MR_CountColor
+local SetDotColor = MR_SetDotColor
 
 function MR:BuildUI()
     if self.frame then self.frame:Show() return end
@@ -280,14 +122,21 @@ function MR:BuildUI()
     end)
 
     local titleAccent = titleBar:CreateTexture(nil, "ARTWORK")
+    MR._titleAccent = titleAccent
     titleAccent:SetPoint("TOPLEFT",    titleBar, "TOPLEFT",    0, 0)
     titleAccent:SetPoint("BOTTOMLEFT", titleBar, "BOTTOMLEFT", 0, 0)
     titleAccent:SetWidth(3)
     titleAccent:SetColorTexture(0.16, 0.78, 0.75, 1)
 
+    local titleIcon = titleBar:CreateTexture(nil, "ARTWORK")
+    titleIcon:SetSize(14, 14)
+    titleIcon:SetPoint("LEFT", titleBar, "LEFT", 8, 0)
+    titleIcon:SetTexture("Interface\\AddOns\\MidnightRoutine\\Media\\Icon")
+    titleIcon:SetVertexColor(0.16, 0.78, 0.75, 1)
+
     local title = titleBar:CreateFontString(nil, "OVERLAY")
     title:SetFont(FONT_HEADERS, math.max(9, GetFontSize()), "OUTLINE")
-    title:SetPoint("LEFT", titleBar, "LEFT", 10, 0)
+    title:SetPoint("LEFT", titleIcon, "RIGHT", 5, 0)
     title:SetText("|cff2ae7c6Midnight Routine|r")
 
     local titleCount = titleBar:CreateFontString(nil, "OVERLAY")
@@ -410,7 +259,7 @@ function MR:BuildUI()
     end)
 
     local cfgBtn = MakeHeaderBtn(
-        { tex = "Interface\\GossipFrame\\DailyActiveQuestIcon" },
+        { tex = "Interface\\Buttons\\UI-OptionsButton" },
         {0.85, 0.65, 0.20},
         {0.18, 0.13, 0.03},
         {0.95, 0.72, 0.18},
@@ -472,7 +321,7 @@ function MR:BuildUI()
     self.scroll = scroll
 
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetWidth((MR.db.profile.width or 260) - 13)
+    content:SetWidth((MR.db.profile.width or 260) - 9)
     content:SetHeight(1)
     scroll:SetScrollChild(content)
     self.content = content
@@ -531,15 +380,23 @@ function MR:RefreshUI()
     self.widgets         = {}
     self.sectionRegistry = {}
 
-    local yOff = 0
     local allDone, allTotal = 0, 0
 
+    local frameW   = MR.db.profile.width or 260
+    local usableW  = frameW - 9  
+    local MIN_COL  = 200
+    local numCols  = math.max(1, math.floor(usableW / MIN_COL))
+    local colW     = math.floor(usableW / numCols)
+
+    local visibleMods = {}
     for _, mod in ipairs(MR:GetOrderedModules()) do
         local modVisible = not mod.isVisible or mod:isVisible()
         if MR:IsModuleEnabled(mod.key) and modVisible then
-            yOff = self:BuildSection(mod, yOff)
+            local h = self:MeasureSection(mod)
+            table.insert(visibleMods, { mod = mod, h = h })
             for _, row in ipairs(mod.rows) do
-                if MR:IsRowEnabled(mod.key, row.key) then
+                local rowVisible = not row.isVisible or row.isVisible()
+                if rowVisible and MR:IsRowEnabled(mod.key, row.key) then
                     allTotal = allTotal + 1
                     if MR:GetProgress(mod.key, row.key) >= row.max then allDone = allDone + 1 end
                 end
@@ -547,14 +404,51 @@ function MR:RefreshUI()
         end
     end
 
+    local cols = {}
+    for i = 1, numCols do cols[i] = 0 end
+
+    local totalModH = 0
+    for _, entry in ipairs(visibleMods) do totalModH = totalModH + entry.h end
+
+    local modColAssign = {}
+    local curCol = 1
+    for _, entry in ipairs(visibleMods) do
+        if curCol < numCols and cols[curCol] >= totalModH / numCols then
+            curCol = curCol + 1
+        end
+        table.insert(modColAssign, { mod = entry.mod, col = curCol, yOff = cols[curCol] })
+        cols[curCol] = cols[curCol] + entry.h
+    end
+
+    for _, assign in ipairs(modColAssign) do
+        local xOff = (assign.col - 1) * colW
+        self:BuildSection(assign.mod, assign.yOff, xOff, colW, assign.col)
+    end
+
+    for c = 2, numCols do
+        local sep = CreateFrame("Frame", nil, self.content)
+        sep:SetWidth(1)
+        sep:SetPoint("TOPLEFT",    self.content, "TOPLEFT",    (c - 1) * colW, 0)
+        sep:SetPoint("BOTTOMLEFT", self.content, "BOTTOMLEFT", (c - 1) * colW, 0)
+        local sepTex = sep:CreateTexture(nil, "ARTWORK")
+        sepTex:SetAllPoints()
+        sepTex:SetColorTexture(1, 1, 1, 0.08)
+        table.insert(self.widgets, sep)
+    end
+
     self.titleCount:SetText(string.format("%d / %d", allDone, allTotal))
     self.titleCount:SetTextColor(countColor(allDone, allTotal))
 
-    self.content:SetHeight(math.max(yOff, 1))
-    self.frame:SetHeight(math.max(math.min(24 + yOff + 6, 600), 30))
+    local totalH = 0
+    for c = 1, numCols do if cols[c] > totalH then totalH = cols[c] end end
+
+    self.content:SetWidth(usableW)
+
+    self.content:SetHeight(math.max(totalH, 1))
+    self.frame:SetHeight(math.max(math.min(24 + totalH + 6, 600), 30))
 
     if self.scroll then
-        local maxScroll = math.max(math.max(yOff, 1) - self.scroll:GetHeight(), 0)
+        local maxScroll = math.max(math.max(totalH, 1) - self.scroll:GetHeight(), 0)
         local cur = self.scroll:GetVerticalScroll()
         if cur > maxScroll then
             self.scroll:SetVerticalScroll(maxScroll)
@@ -572,19 +466,40 @@ function MR:RefreshUI()
     end
 end
 
-function MR:BuildSection(mod, yOff)
+function MR:MeasureSection(mod)
+    local isOpen = MR:IsModuleOpen(mod.key)
+    local hideComplete = MR:IsModuleHideComplete(mod.key)
+    local h = HEADER_HEIGHT + 1 
+    if isOpen then
+        for _, row in ipairs(mod.rows) do
+            local rowVisible = not row.isVisible or row.isVisible()
+            if rowVisible and MR:IsRowEnabled(mod.key, row.key) then
+                local done = MR:GetProgress(mod.key, row.key)
+                local isComplete = not row.noMax and done >= row.max
+                local collapsed  = hideComplete and isComplete
+                h = h + (collapsed and 8 or ROW_HEIGHT)
+            end
+        end
+    end
+    return h
+end
+
+function MR:BuildSection(mod, yOff, xOff, colW, col)
     local isOpen = MR:IsModuleOpen(mod.key)
 
     local secDone, secTotal = 0, 0
     for _, row in ipairs(mod.rows) do
-        secTotal = secTotal + 1
-        if MR:GetProgress(mod.key, row.key) >= row.max then secDone = secDone + 1 end
+        local rowVisible = not row.isVisible or row.isVisible()
+        if rowVisible and MR:IsRowEnabled(mod.key, row.key) then
+            secTotal = secTotal + 1
+            if MR:GetProgress(mod.key, row.key) >= row.max then secDone = secDone + 1 end
+        end
     end
-    local allDone = (secDone == secTotal)
+    local allDone = (secTotal > 0) and (secDone == secTotal)
 
     local hdrFrame = CreateFrame("Frame", nil, self.content)
-    hdrFrame:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -yOff)
-    hdrFrame:SetSize((MR.db.profile.width or 260) - 13, HEADER_HEIGHT)
+    hdrFrame:SetPoint("TOPLEFT", self.content, "TOPLEFT", xOff, -yOff)
+    hdrFrame:SetSize(colW, HEADER_HEIGHT)
     hdrFrame:EnableMouse(true)
 
     local hdrBg = hdrFrame:CreateTexture(nil, "BACKGROUND")
@@ -630,51 +545,33 @@ function MR:BuildSection(mod, yOff)
     end
     arrow:SetVertexColor(0.45, 0.45, 0.45)
 
-    local gripTip = hdrFrame:CreateFontString(nil, "OVERLAY")
-    gripTip:SetFont(FONT_ROWS, math.max(6, GetFontSize() - 4), "OUTLINE")
-    gripTip:SetPoint("LEFT", hdrFrame, "LEFT", 2, 0)
-    gripTip:SetText("||")
-    gripTip:SetTextColor(0.2, 0.2, 0.25)
-
     hdrFrame:EnableMouse(true)
-    hdrFrame:SetScript("OnMouseDown", function(_, button)
-        if button == "RightButton" then
-            StartSectionDrag(mod.key, mod.label)
-        end
-    end)
     hdrFrame:SetScript("OnMouseUp", function(_, button)
-        if button == "RightButton" then
-            if DRAG.active then StopDrag() end
-        elseif button == "LeftButton" then
-            if not DRAG.active then
-                MR:SetModuleOpen(mod.key, not MR:IsModuleOpen(mod.key))
-                MR:RefreshUI()
-            end
+        if button == "LeftButton" then
+            MR:SetModuleOpen(mod.key, not MR:IsModuleOpen(mod.key))
+            MR:RefreshUI()
         end
     end)
     hdrFrame:SetScript("OnEnter", function()
         hdrHover:SetColorTexture(1, 1, 1, 0.05)
-        gripTip:SetTextColor(0.3, 0.8, 0.65)
         GameTooltip:SetOwner(hdrFrame, "ANCHOR_RIGHT")
         GameTooltip:SetText(mod.label, 1, 1, 1)
         GameTooltip:AddLine("Left-click: expand/collapse", 0.5, 0.5, 0.5)
-        GameTooltip:AddLine("Right-click drag: reorder sections", 0.5, 0.5, 0.5)
         GameTooltip:Show()
     end)
     hdrFrame:SetScript("OnLeave", function()
         hdrHover:SetColorTexture(1, 1, 1, 0)
-        gripTip:SetTextColor(0.2, 0.2, 0.25)
         GameTooltip:Hide()
     end)
 
     table.insert(self.widgets, hdrFrame)
-    table.insert(self.sectionRegistry, { frame = hdrFrame, modKey = mod.key })
+    table.insert(self.sectionRegistry, { frame = hdrFrame, modKey = mod.key, col = col or 1, yOff = yOff })
 
     yOff = yOff + HEADER_HEIGHT
 
     local div = CreateFrame("Frame", nil, self.content, "BackdropTemplate")
-    div:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -yOff)
-    div:SetSize((MR.db.profile.width or 260) - 13, 1)
+    div:SetPoint("TOPLEFT", self.content, "TOPLEFT", xOff, -yOff)
+    div:SetSize(colW, 1)
     div:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
     div:SetBackdropColor(1, 1, 1, 0.06)
     table.insert(self.widgets, div)
@@ -682,11 +579,12 @@ function MR:BuildSection(mod, yOff)
     if isOpen then
         local hideComplete = MR:IsModuleHideComplete(mod.key)
         for _, row in ipairs(mod.rows) do
-            if MR:IsRowEnabled(mod.key, row.key) then
+            local rowVisible = not row.isVisible or row.isVisible()
+            if rowVisible and MR:IsRowEnabled(mod.key, row.key) then
                 local done      = MR:GetProgress(mod.key, row.key)
                 local isComplete = not row.noMax and done >= row.max
                 local collapsed  = hideComplete and isComplete
-                yOff = self:BuildRow(mod, row, done, yOff, collapsed)
+                yOff = self:BuildRow(mod, row, done, yOff, collapsed, xOff, colW)
             end
         end
     end
@@ -696,15 +594,17 @@ function MR:BuildSection(mod, yOff)
     return yOff
 end
 
-function MR:BuildRow(mod, row, done, yOff, collapsed)
+function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW)
+    xOff = xOff or 0
+    colW = colW or ((MR.db.profile.width or 260) - 13)
     local isAutoTracked = (row.questIds ~= nil) or (row.liveKey ~= nil) or (row.spellId ~= nil) or (row.currencyId ~= nil)
     local isComplete    = not row.noMax and done >= row.max
     local GHOST_H       = 8
     local rowH          = collapsed and GHOST_H or ROW_HEIGHT
 
     local rowFrame = CreateFrame("Frame", nil, self.content)
-    rowFrame:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -yOff)
-    rowFrame:SetSize((MR.db.profile.width or 260) - 13, rowH)
+    rowFrame:SetPoint("TOPLEFT", self.content, "TOPLEFT", xOff, -yOff)
+    rowFrame:SetSize(colW, rowH)
     rowFrame:EnableMouse(true)
 
     if collapsed then
@@ -837,6 +737,7 @@ function MR:BuildRow(mod, row, done, yOff, collapsed)
     return yOff + rowH
 end
 
+
 function MR:ToggleConfig()
     if cfgFrame and cfgFrame:IsShown() then cfgFrame:Hide() return end
     if not cfgFrame then cfgFrame = self:BuildConfigFrame() end
@@ -846,7 +747,7 @@ end
 
 function MR:BuildConfigFrame()
     local f = CreateFrame("Frame", "MRConfigFrame", UIParent, "BackdropTemplate")
-    f:SetWidth(210)
+    f:SetWidth(240)
     f:SetFrameStrata("HIGH")
     f:SetClampedToScreen(true)
     f:SetMovable(true)
@@ -922,214 +823,57 @@ function MR:PopulateConfigFrame(f)
 
     local yOff = -26
 
-    local function Gap(h) yOff = yOff - (h or 4) end
-
-    local function Divider()
-        local fr = CreateFrame("Frame", nil, body, "BackdropTemplate")
-        fr:SetPoint("TOPLEFT",  body, "TOPLEFT",  4, yOff)
-        fr:SetPoint("TOPRIGHT", body, "TOPRIGHT", -4, yOff)
-        fr:SetHeight(1)
-        fr:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
-        fr:SetBackdropColor(1, 1, 1, 0.08)
-        yOff = yOff - 6
-    end
-
-    local function SectionLabel(text)
-        local fr = CreateFrame("Frame", nil, body)
-        fr:SetPoint("TOPLEFT",  body, "TOPLEFT",  8, yOff)
-        fr:SetPoint("TOPRIGHT", body, "TOPRIGHT", -8, yOff)
-        fr:SetHeight(14)
-        local fs = fr:CreateFontString(nil, "OVERLAY")
-        fs:SetFont(FONT_ROWS, 9, "OUTLINE")
-        fs:SetText("|cff888888" .. text .. "|r")
-        fs:SetPoint("LEFT", fr)
-        fs:SetJustifyH("LEFT")
-        yOff = yOff - 16
-    end
-
+    local function Gap(h)          yOff = MR_OptionsGap(body, yOff, h) end
+    local function Divider()       yOff = MR_OptionsDivider(body, yOff, 4) end
+    local function SectionLabel(t) yOff = MR_OptionsSectionLabel(body, yOff, t, 8) end
     local function Checkbox(label, getVal, setVal, color)
-        local fr = CreateFrame("CheckButton", nil, body, "UICheckButtonTemplate")
-        fr:SetSize(20, 20)
-        fr:SetPoint("TOPLEFT", body, "TOPLEFT", 4, yOff)
-        fr:SetChecked(getVal())
-        fr:EnableMouse(true)
-        fr:SetScript("OnClick", function(s) setVal(s:GetChecked()) end)
-        local lbl = fr:CreateFontString(nil, "OVERLAY")
-        lbl:SetFont(FONT_ROWS, 10, "OUTLINE")
-        lbl:SetText(label)
-        if color then lbl:SetTextColor(hex(color)) else lbl:SetTextColor(0.88, 0.88, 0.88) end
-        lbl:SetPoint("LEFT", fr, "RIGHT", 0, 0)
-        yOff = yOff - 22
+        local r, g, b
+        if color then r, g, b = hex(color) end
+        yOff = MR_OptionsCheckbox(body, yOff, label, getVal, setVal, r, g, b, 4, nil)
     end
+    local function Btn(label, onClick) yOff = MR_OptionsBtn(body, yOff, label, onClick, 192, 8) end
 
-    local function Btn(label, onClick)
-        local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
-        btn:SetSize(192, 20)
-        btn:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
-        btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-        btn:SetBackdropColor(0.05, 0.10, 0.18, 1)
-        btn:SetBackdropBorderColor(0.18, 0.40, 0.45, 1)
-        local fs = btn:CreateFontString(nil, "OVERLAY")
-        fs:SetFont(FONT_ROWS, 10, "OUTLINE")
-        fs:SetPoint("CENTER")
-        fs:SetText(label)
-        fs:SetTextColor(0.70, 0.88, 0.85)
-        btn:SetScript("OnClick", onClick)
-        btn:SetScript("OnEnter", function()
-            btn:SetBackdropColor(0.08, 0.22, 0.32, 1)
-            btn:SetBackdropBorderColor(0.25, 0.85, 0.72, 1)
-            fs:SetTextColor(1, 1, 1)
-        end)
-        btn:SetScript("OnLeave", function()
-            btn:SetBackdropColor(0.05, 0.10, 0.18, 1)
-            btn:SetBackdropBorderColor(0.18, 0.40, 0.45, 1)
-            fs:SetTextColor(0.70, 0.88, 0.85)
-        end)
-        yOff = yOff - 26
-    end
-
+    SectionLabel("RENOWN TRACKER")
+    Checkbox("Open Renown Window",
+        function() return MR.db and MR.db.profile.renownOpen end,
+        function(v)
+            MR.db.profile.renownOpen = v
+            if MR.ToggleRenown then MR:ToggleRenown() end
+        end, "#d9b82e")
+    Gap(4); Divider()
     SectionLabel("OPTIONS")
     Checkbox("Collapse Completed (Global)",
         function() return MR.db.profile.hideComplete end,
-        function(v) MR.db.profile.hideComplete = v; MR:RefreshUI() end)
+        function(v)
+            MR.db.profile.hideComplete = v
+            for _, mod in ipairs(MR.modules) do
+                if MR.db.profile.modules[mod.key] then
+                    MR.db.profile.modules[mod.key].hideComplete = nil
+                end
+            end
+            MR:RefreshUI()
+        end)
     Checkbox("Lock Frame",
         function() return MR.db.profile.locked end,
         function(v)
             MR.db.profile.locked = v
             MR.frame:SetMovable(not v)
         end)
-    Checkbox("Transparent Mode",
-        function() return MR.db.profile.transparentMode end,
-        function(v)
-            MR.db.profile.transparentMode = v
-            ApplyTheme()
-        end)
     Checkbox("Hide Minimap Icon",
         function() return MR.db.profile.minimap and MR.db.profile.minimap.hide or false end,
         function(v) MR:SetMinimapHidden(v) end)
 
     Gap(6)
-    local sliderLabel = body:CreateFontString(nil, "OVERLAY")
-    sliderLabel:SetFont(FONT_ROWS, 9, "OUTLINE")
-    sliderLabel:SetText("|cff888888WIDTH|r")
-    sliderLabel:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
-    yOff = yOff - 14
-
-    local sliderBg = CreateFrame("Frame", nil, body, "BackdropTemplate")
-    sliderBg:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
-    sliderBg:SetSize(150, 14)
-    sliderBg:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-    sliderBg:SetBackdropColor(0, 0, 0, 0.5)
-    sliderBg:SetBackdropBorderColor(0.25, 0.25, 0.3, 1)
-
-    local sliderFill = sliderBg:CreateTexture(nil, "ARTWORK")
-    sliderFill:SetPoint("LEFT", sliderBg, "LEFT", 2, 0)
-    sliderFill:SetHeight(10)
-    sliderFill:SetColorTexture(0.16, 0.78, 0.75, 0.85)
-
-    local sliderValBox = CreateFrame("Frame", nil, body, "BackdropTemplate")
-    sliderValBox:SetPoint("LEFT", sliderBg, "RIGHT", 5, 0)
-    sliderValBox:SetSize(38, 14)
-    sliderValBox:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-    sliderValBox:SetBackdropColor(0, 0, 0, 0.5)
-    sliderValBox:SetBackdropBorderColor(0.25, 0.25, 0.3, 1)
-
-    local sliderValText = sliderValBox:CreateFontString(nil, "OVERLAY")
-    sliderValText:SetFont(FONT_ROWS, 9, "OUTLINE")
-    sliderValText:SetPoint("CENTER", sliderValBox, "CENTER", 0, 0)
-
-    local slider = CreateFrame("Slider", nil, sliderBg)
-    slider:SetAllPoints(sliderBg)
-    slider:SetMinMaxValues(PANEL_MIN_WIDTH, PANEL_MAX_WIDTH)
-    slider:SetValueStep(10)
-    slider:SetObeyStepOnDrag(true)
-    slider:SetOrientation("HORIZONTAL")
-    slider:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
-    local thumb = slider:GetThumbTexture()
-    if thumb then thumb:Hide() end
-
-    local function UpdateSliderVisual(w)
-        local pct = (w - PANEL_MIN_WIDTH) / (PANEL_MAX_WIDTH - PANEL_MIN_WIDTH)
-        sliderFill:SetWidth(math.max(2, (sliderBg:GetWidth() - 4) * pct))
-        sliderValText:SetText(w)
-    end
-
-    slider:SetValue(MR.db.profile.width or 260)
-    UpdateSliderVisual(MR.db.profile.width or 260)
-
-    slider:SetScript("OnValueChanged", function(s, v)
-        v = math.floor(v / 10) * 10
-        UpdateSliderVisual(v)
-    end)
-    slider:SetScript("OnMouseUp", function(s)
-        ApplyWidth(s:GetValue())
-        MR:PopulateConfigFrame(f)
-    end)
-
-    yOff = yOff - 18
+    yOff = MR_OptionsSlider(body, yOff, "WIDTH", PANEL_MIN_WIDTH, PANEL_MAX_WIDTH, 10,
+        function() return MR.db.profile.width or 260 end,
+        function(v) ApplyWidth(v); MR:PopulateConfigFrame(f) end,
+        0.16, 0.78, 0.75, 8)
 
     Gap(6)
-    local fsLabel = body:CreateFontString(nil, "OVERLAY")
-    fsLabel:SetFont(FONT_ROWS, 9, "OUTLINE")
-    fsLabel:SetText("|cff888888FONT SIZE|r")
-    fsLabel:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
-    yOff = yOff - 14
-
-    local fsBg = CreateFrame("Frame", nil, body, "BackdropTemplate")
-    fsBg:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
-    fsBg:SetSize(150, 14)
-    fsBg:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-    fsBg:SetBackdropColor(0, 0, 0, 0.5)
-    fsBg:SetBackdropBorderColor(0.25, 0.25, 0.3, 1)
-
-    local fsFill = fsBg:CreateTexture(nil, "ARTWORK")
-    fsFill:SetPoint("LEFT", fsBg, "LEFT", 2, 0)
-    fsFill:SetHeight(10)
-    fsFill:SetColorTexture(0.78, 0.55, 0.16, 0.85)
-
-    local fsValBox = CreateFrame("Frame", nil, body, "BackdropTemplate")
-    fsValBox:SetPoint("LEFT", fsBg, "RIGHT", 5, 0)
-    fsValBox:SetSize(38, 14)
-    fsValBox:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-    fsValBox:SetBackdropColor(0, 0, 0, 0.5)
-    fsValBox:SetBackdropBorderColor(0.25, 0.25, 0.3, 1)
-
-    local fsValText = fsValBox:CreateFontString(nil, "OVERLAY")
-    fsValText:SetFont(FONT_ROWS, 9, "OUTLINE")
-    fsValText:SetPoint("CENTER", fsValBox, "CENTER", 0, 0)
-
-    local fsSlider = CreateFrame("Slider", nil, fsBg)
-    fsSlider:SetAllPoints(fsBg)
-    fsSlider:SetMinMaxValues(FONT_SIZE_MIN, FONT_SIZE_MAX)
-    fsSlider:SetValueStep(1)
-    fsSlider:SetObeyStepOnDrag(true)
-    fsSlider:SetOrientation("HORIZONTAL")
-    fsSlider:SetThumbTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
-    local fsThumb = fsSlider:GetThumbTexture()
-    if fsThumb then fsThumb:Hide() end
-
-    local function UpdateFsVisual(sz)
-        local pct = (sz - FONT_SIZE_MIN) / (FONT_SIZE_MAX - FONT_SIZE_MIN)
-        fsFill:SetWidth(math.max(2, (fsBg:GetWidth() - 4) * pct))
-        fsValText:SetText(sz)
-    end
-
-    local currentFs = GetFontSize()
-    fsSlider:SetValue(currentFs)
-    UpdateFsVisual(currentFs)
-
-    fsSlider:SetScript("OnValueChanged", function(s, v)
-        v = math.floor(v)
-        UpdateFsVisual(v)
-    end)
-    fsSlider:SetScript("OnMouseUp", function(s)
-        ApplyFontSize(s:GetValue())
-        MR:PopulateConfigFrame(f)
-    end)
-
-    local presetRow = CreateFrame("Frame", nil, body)
-    presetRow:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff - 18)
-    presetRow:SetSize(192, 18)
+    yOff = MR_OptionsSlider(body, yOff, "FONT SIZE", FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
+        function() return GetFontSize() end,
+        function(v) ApplyFontSize(math.floor(v)); MR:PopulateConfigFrame(f) end,
+        0.78, 0.55, 0.16, 8)
 
     local presets = { {"S", 9}, {"M", 11}, {"L", 14}, {"XL", 17} }
     local btnW = 42
@@ -1162,8 +906,26 @@ function MR:PopulateConfigFrame(f)
 
     yOff = yOff - 40
 
+    Gap(4)
+    yOff = MR_OptionsSlider(body, yOff, "BACKGROUND", 0, 1, 0.05,
+        function() return MR.db.profile.frameAlpha or 1.0 end,
+        function(v)
+            MR.db.profile.frameAlpha = v
+            ApplyTheme()
+        end,
+        0.40, 0.40, 0.40, 8)
+
+    Gap(4)
+    yOff = MR_OptionsSlider(body, yOff, "SCALE", 0.5, 2.0, 0.05,
+        function() return MR.db.profile.scale or 1.0 end,
+        function(v)
+            MR.db.profile.scale = v
+            if MR.frame then MR.frame:SetScale(v) end
+        end,
+        0.55, 0.22, 0.82, 8)
+
     Gap(4); Divider()
-    SectionLabel("MODULES")
+    SectionLabel("MODULE SETTINGS")
 
     if not MR._cfgExpanded then MR._cfgExpanded = {} end
 
@@ -1210,65 +972,169 @@ function MR:PopulateConfigFrame(f)
     end
 
     local function BuildColorSwatch(parent, key, mod, anchorRight)
-        local swatch = CreateFrame("Button", nil, parent, "BackdropTemplate")
-        swatch:SetSize(16, 16)
-        swatch:SetPoint("RIGHT", anchorRight, "LEFT", -2, 0)
-        swatch:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-        
         local currentColor = MR:GetHeaderColor(key)
         local r, g, b = hex(currentColor or mod.labelColor or "#ffffff")
-        swatch:SetBackdropColor(r, g, b, 1)
-        swatch:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
-        
-        swatch:SetScript("OnClick", function(self, button)
-            if button == "LeftButton" then
-                local function OnColorChanged(restore)
-                    local newR, newG, newB
-                    if restore then
-                        newR, newG, newB = restore.r, restore.g, restore.b
-                    else
-                        newR, newG, newB = ColorPickerFrame:GetColorRGB()
-                    end
-                    local hexColor = string.format("#%02x%02x%02x", newR * 255, newG * 255, newB * 255)
-                    MR:SetHeaderColor(key, hexColor)
-                    swatch:SetBackdropColor(newR, newG, newB, 1)
-                end
-                
-                ColorPickerFrame:SetupColorPickerAndShow({
-                    r = r,
-                    g = g,
-                    b = b,
-                    hasOpacity = false,
-                    swatchFunc = OnColorChanged,
-                    cancelFunc = OnColorChanged,
-                })
-            elseif button == "RightButton" then
+        local swatch = MR_OptionsColorSwatch(parent, r, g, b,
+            function(nr, ng, nb)
+                local hx = string.format("#%02x%02x%02x", nr*255, ng*255, nb*255)
+                MR:SetHeaderColor(key, hx)
+            end,
+            function()
                 MR:ResetHeaderColor(key)
-                local defaultColor = mod.labelColor or "#ffffff"
-                local dr, dg, db = hex(defaultColor)
-                swatch:SetBackdropColor(dr, dg, db, 1)
+                local dr, dg, db = hex(mod.labelColor or "#ffffff")
                 MR:PopulateConfigFrame(f)
-            end
-        end)
-        
-        swatch:SetScript("OnEnter", function()
-            swatch:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
-            GameTooltip:SetOwner(swatch, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Header Color", 1, 1, 1)
-            GameTooltip:AddLine("Left-click: Pick color", 0.5, 0.5, 0.5)
-            GameTooltip:AddLine("Right-click: Reset to default", 0.5, 0.5, 0.5)
-            GameTooltip:Show()
-        end)
-        
-        swatch:SetScript("OnLeave", function()
-            swatch:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
-            GameTooltip:Hide()
-        end)
-        
+                return dr, dg, db
+            end,
+            "Header Color")
+        swatch:SetPoint("RIGHT", anchorRight, "LEFT", -2, 0)
         return swatch
     end
 
-    for _, mod in ipairs(MR:GetOrderedModules()) do
+    local drag = { active = false, srcKey = nil, targetIdx = nil }
+
+    local dragGhost = CreateFrame("Frame", nil, body, "BackdropTemplate")
+    dragGhost:SetHeight(20)
+    dragGhost:SetFrameStrata("DIALOG")
+    dragGhost:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    dragGhost:SetBackdropColor(0.08, 0.28, 0.22, 0.95)
+    dragGhost:SetBackdropBorderColor(0.2, 0.9, 0.65, 1)
+    dragGhost:Hide()
+    local dragGhostLbl = dragGhost:CreateFontString(nil, "OVERLAY")
+    dragGhostLbl:SetFont(FONT_HEADERS, 10, "OUTLINE")
+    dragGhostLbl:SetPoint("LEFT", dragGhost, "LEFT", 8, 0)
+    dragGhostLbl:SetTextColor(0.3, 1, 0.75)
+
+    local dragLine = CreateFrame("Frame", nil, body)
+    dragLine:SetHeight(2)
+    dragLine:SetFrameStrata("DIALOG")
+    dragLine:Hide()
+    local dragLineTex = dragLine:CreateTexture(nil, "OVERLAY")
+    dragLineTex:SetAllPoints()
+    dragLineTex:SetColorTexture(0.2, 0.9, 0.65, 1)
+
+    local _allMods = MR:GetOrderedModules()
+    local _cfgRows = {}
+
+    local function DragOnUpdate()
+        if not drag.active then return end
+        local rows = _cfgRows
+        if #rows == 0 then return end
+
+        local cx, cy = GetCursorPosition()
+        local scale  = body:GetEffectiveScale()
+        local bLeft  = body:GetLeft()
+        local bTop   = body:GetTop()
+        if not bLeft or not bTop then return end
+        local localX = cx / scale - bLeft
+        local localY = bTop - cy / scale 
+
+        dragGhost:ClearAllPoints()
+        dragGhost:SetPoint("TOPLEFT",  body, "TOPLEFT", 4,       -localY + 10)
+        dragGhost:SetPoint("TOPRIGHT", body, "TOPRIGHT", -4,     -localY + 10)
+        dragGhost:Show()
+
+        local screenCY = cy / UIParent:GetEffectiveScale()
+        local slot = #rows  
+        for i, row in ipairs(rows) do
+            local rTop = row.frame:GetTop()
+            local rBot = row.frame:GetBottom()
+            if rTop and rBot then
+                local mid = (rTop + rBot) / 2
+                if screenCY > mid then
+                    slot = i - 1
+                    break
+                end
+            end
+        end
+        slot = math.max(0, math.min(slot, #rows))
+        drag.targetIdx = slot
+
+        local lineRefFrame
+        local lineAtBottom = false
+        if slot == 0 then
+            lineRefFrame = rows[1].frame
+            lineAtBottom = false
+        elseif slot >= #rows then
+            lineRefFrame = rows[#rows].frame
+            lineAtBottom = true
+        else
+            lineRefFrame = rows[slot].frame
+            lineAtBottom = true
+        end
+
+        if lineRefFrame then
+            local lY = lineAtBottom and (lineRefFrame:GetBottom() or 0) or (lineRefFrame:GetTop() or 0)
+            local lLeft  = lineRefFrame:GetLeft()  or 0
+            local lRight = lineRefFrame:GetRight() or 0
+            local bodyTop   = body:GetTop() or 0
+            local bodyLeft  = body:GetLeft() or 0
+            local lineBodyY = -(bodyTop - lY)
+            local lineBodyL = lLeft - bodyLeft
+            local lineBodyR = lRight - bodyLeft
+            dragLine:ClearAllPoints()
+            dragLine:SetPoint("TOPLEFT",  body, "TOPLEFT", lineBodyL, lineBodyY)
+            dragLine:SetPoint("TOPRIGHT", body, "TOPLEFT", lineBodyR, lineBodyY)
+            dragLine:Show()
+        end
+
+        for _, row in ipairs(rows) do
+            row.frame:SetAlpha(row.key == drag.srcKey and 0.3 or 1.0)
+        end
+    end
+
+    f:SetScript("OnUpdate", function()
+        if drag.active then DragOnUpdate() end
+    end)
+
+    local function CommitDrag()
+        if not drag.active then return end
+        drag.active = false
+        for _, row in ipairs(_cfgRows) do row.frame:SetAlpha(1) end
+        dragGhost:Hide()
+        dragLine:Hide()
+
+        local slot = drag.targetIdx
+        if slot == nil then MR:PopulateConfigFrame(f); return end
+
+        local allMods = MR:GetOrderedModules()
+        local visMods = {}
+        for _, row in ipairs(_cfgRows) do
+            for _, m in ipairs(allMods) do
+                if m.key == row.key then table.insert(visMods, m); break end
+            end
+        end
+        local srcIdx = nil
+        for i, m in ipairs(visMods) do
+            if m.key == drag.srcKey then srcIdx = i; break end
+        end
+        if not srcIdx then MR:PopulateConfigFrame(f); return end
+
+        local insertAt = slot + 1
+        if srcIdx < insertAt then insertAt = insertAt - 1 end
+        insertAt = math.max(1, math.min(insertAt, #visMods))
+
+        if srcIdx ~= insertAt then
+            local moved = table.remove(visMods, srcIdx)
+            table.insert(visMods, insertAt, moved)
+            local inCfgRows = {}
+            for _, row in ipairs(_cfgRows) do inCfgRows[row.key] = true end
+            local newOrder = {}
+            local vi = 1
+            for _, m in ipairs(allMods) do
+                if inCfgRows[m.key] then
+                    table.insert(newOrder, visMods[vi].key); vi = vi + 1
+                else
+                    table.insert(newOrder, m.key)
+                end
+            end
+            MR:SetModuleOrder(newOrder)
+            MR:RefreshUI()
+        end
+        drag.srcKey = nil; drag.targetIdx = nil
+        MR:PopulateConfigFrame(f)
+    end
+
+    for _, mod in ipairs(_allMods) do
         local key = mod.key
         local optVisible = not mod.isVisible or mod:isVisible()
 
@@ -1279,9 +1145,47 @@ function MR:PopulateConfigFrame(f)
                 headerFr:SetPoint("TOPLEFT", body, "TOPLEFT", 4, yOff)
                 headerFr:SetSize(196, ROW_H)
 
+                local grip = CreateFrame("Button", nil, headerFr, "BackdropTemplate")
+                grip:SetSize(16, ROW_H - 2)
+                grip:SetPoint("LEFT", headerFr, "LEFT", 1, 0)
+                grip:RegisterForClicks("LeftButtonUp")
+                grip:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+                grip:SetBackdropColor(0.12, 0.22, 0.20, 0.6)
+                grip:SetBackdropBorderColor(0.30, 0.55, 0.48, 0.7)
+                local gripLbl = grip:CreateFontString(nil, "OVERLAY")
+                gripLbl:SetFont(FONT_HEADERS, 13, "OUTLINE")
+                gripLbl:SetPoint("CENTER", grip, "CENTER", 0, 0)
+                gripLbl:SetText("=")
+                gripLbl:SetTextColor(0.50, 0.75, 0.68)
+                grip:SetScript("OnEnter", function()
+                    if not drag.active then
+                        gripLbl:SetTextColor(0.3, 1, 0.8)
+                        grip:SetBackdropColor(0.15, 0.35, 0.30, 0.9)
+                        grip:SetBackdropBorderColor(0.3, 1, 0.75, 1)
+                    end
+                end)
+                grip:SetScript("OnLeave", function()
+                    if not drag.active then
+                        gripLbl:SetTextColor(0.50, 0.75, 0.68)
+                        grip:SetBackdropColor(0.12, 0.22, 0.20, 0.6)
+                        grip:SetBackdropBorderColor(0.30, 0.55, 0.48, 0.7)
+                    end
+                end)
+                grip:SetScript("OnMouseDown", function()
+                    if drag.active then return end
+                    drag.active = true
+                    drag.srcKey = key
+                    drag.targetIdx = nil
+                    dragGhostLbl:SetText(mod.label)
+                end)
+                grip:SetScript("OnClick", function()
+                    if drag.active then CommitDrag() end
+                end)
+                table.insert(_cfgRows, { key = key, frame = headerFr, label = mod.label })
+
                 local cb = CreateFrame("CheckButton", nil, headerFr, "UICheckButtonTemplate")
                 cb:SetSize(20, 20)
-                cb:SetPoint("LEFT", headerFr, "LEFT", 0, 0)
+                cb:SetPoint("LEFT", headerFr, "LEFT", 18, 0)
                 cb:SetChecked(MR:IsModuleEnabled(key))
                 cb:SetScript("OnClick", function(s)
                     MR:SetModuleEnabled(key, s:GetChecked())
@@ -1314,7 +1218,7 @@ function MR:PopulateConfigFrame(f)
 
             local cb = CreateFrame("CheckButton", nil, headerFr, "UICheckButtonTemplate")
             cb:SetSize(20, 20)
-            cb:SetPoint("LEFT", headerFr, "LEFT", 0, 0)
+            cb:SetPoint("LEFT", headerFr, "LEFT", 18, 0)
             cb:SetChecked(MR:IsModuleEnabled(key))
             cb:SetScript("OnClick", function(s)
                 MR:SetModuleEnabled(key, s:GetChecked())
@@ -1350,6 +1254,44 @@ function MR:PopulateConfigFrame(f)
                 arrowLbl:SetTextColor(0.45, 0.75, 0.70)
                 GameTooltip:Hide()
             end)
+
+            local grip = CreateFrame("Button", nil, headerFr, "BackdropTemplate")
+            grip:SetSize(16, ROW_H - 2)
+            grip:SetPoint("LEFT", headerFr, "LEFT", 1, 0)
+            grip:RegisterForClicks("LeftButtonUp")
+            grip:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            grip:SetBackdropColor(0.12, 0.22, 0.20, 0.6)
+            grip:SetBackdropBorderColor(0.30, 0.55, 0.48, 0.7)
+            local gripLbl = grip:CreateFontString(nil, "OVERLAY")
+            gripLbl:SetFont(FONT_HEADERS, 13, "OUTLINE")
+            gripLbl:SetPoint("CENTER", grip, "CENTER", 0, 0)
+            gripLbl:SetText("=")
+            gripLbl:SetTextColor(0.50, 0.75, 0.68)
+            grip:SetScript("OnEnter", function()
+                if not drag.active then
+                    gripLbl:SetTextColor(0.3, 1, 0.8)
+                    grip:SetBackdropColor(0.15, 0.35, 0.30, 0.9)
+                    grip:SetBackdropBorderColor(0.3, 1, 0.75, 1)
+                end
+            end)
+            grip:SetScript("OnLeave", function()
+                if not drag.active then
+                    gripLbl:SetTextColor(0.50, 0.75, 0.68)
+                    grip:SetBackdropColor(0.12, 0.22, 0.20, 0.6)
+                    grip:SetBackdropBorderColor(0.30, 0.55, 0.48, 0.7)
+                end
+            end)
+            grip:SetScript("OnMouseDown", function()
+                if drag.active then return end
+                drag.active = true
+                drag.srcKey = key
+                drag.targetIdx = nil
+                dragGhostLbl:SetText(mod.label)
+            end)
+            grip:SetScript("OnClick", function()
+                if drag.active then CommitDrag() end
+            end)
+            table.insert(_cfgRows, { key = key, frame = headerFr, label = mod.label })
 
             local hideBtn = BuildHideCompleteBtn(headerFr, key, arrowBtn)
             local colorSwatch = BuildColorSwatch(headerFr, key, mod, hideBtn)
@@ -1474,6 +1416,7 @@ function MR:PopulateConfigFrame(f)
     end)
     Btn("Reset Section Order", function()
         MR.db.profile.moduleOrder = {}
+        MR._orderedModulesCache = nil
         MR:RefreshUI()
         MR:PopulateConfigFrame(f)
     end)
