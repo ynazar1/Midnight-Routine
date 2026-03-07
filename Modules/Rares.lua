@@ -819,14 +819,14 @@ PopulateRaresConfig = function(f)
 
     Gap(4); Divider()
     SecLabel(L["Config_SizeOpacity"])
-    Slider("WIDTH", MIN_W, MAX_W, 10,
+    Slider(L["WIDTH"], MIN_W, MAX_W, 10,
         function() return db.raresWidth or DEFAULT_W end,
         function(v)
             db.raresWidth = math.floor(v / 10) * 10
             RebuildRaresFrame()
         end,
         0.55, 0.28, 0.95)
-    Slider("HEIGHT", MIN_H, MAX_H, 10,
+    Slider(L["HEIGHT"], MIN_H, MAX_H, 10,
         function() return db.raresHeight or DEFAULT_H end,
         function(v)
             db.raresHeight = math.floor(v / 10) * 10
@@ -835,7 +835,7 @@ PopulateRaresConfig = function(f)
             end
         end,
         0.16, 0.75, 0.78)
-    Slider("FONT SIZE", 7, 16, 1,
+    Slider(L["Config_FontSize"], 7, 16, 1,
         function() return db.raresFontSize or 9 end,
         function(v) db.raresFontSize = math.floor(v); RebuildRaresFrame() end,
         0.78, 0.55, 0.16)
@@ -870,7 +870,7 @@ PopulateRaresConfig = function(f)
         yOff = yOff - 22
     end
 
-    Slider("BACKGROUND", 0, 1, 0.05,
+    Slider(L["BACKGROUND"], 0, 1, 0.05,
         function() return db.raresAlpha or 1.0 end,
         function(v)
             db.raresAlpha = v
@@ -891,7 +891,7 @@ PopulateRaresConfig = function(f)
             end
         end,
         0.40, 0.40, 0.40)
-    Slider("SCALE", 0.5, 2.0, 0.05,
+    Slider(L["SCALE"], 0.5, 2.0, 0.05,
         function() return db.raresScale or 1.0 end,
         function(v)
             db.raresScale = v
@@ -939,8 +939,8 @@ PopulateRaresConfig = function(f)
     end
 
     Gap(4); Divider()
-    SecLabel("RESETS")
-    Btn("Reset All Colors", function()
+    SecLabel(L["RESETS"])
+    Btn(L["Config_ResetColors"], function()
         db.raresColors = {}
         RebuildRaresFrame()
         PopulateRaresConfig(f)
