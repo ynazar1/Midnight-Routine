@@ -423,7 +423,7 @@ L["Subfaction_ShadesOfTheRow"] = "径巷之影"
 -- WorldEvents
 L["DMF_Title"] = "暗月马戏团"
 L["DMF_Prof_Label"] = "|cffcc99ff专业任务：|r"
-L["DMF_Prof_Note"] = "每个专业一个任务 — 给技能点和知识点各3点"
+L["DMF_Prof_Note"] = "每个专业一个任务 — 给技能提高和知识各3点"
 L["DMF_Dungeon_Label"] = "|cffcc99ff地下城：战略论：|r"
 L["DMF_Dungeon_Note"] = "在马戏团期间完成一个地下城"
 L["DMF_Tonk_Label"] = "|cffcc99ff游戏：坦克指挥官：|r"
