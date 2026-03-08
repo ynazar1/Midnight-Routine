@@ -914,8 +914,8 @@ function MR:PopulateConfigFrame(f)
             if MR.ToggleRares then MR:ToggleRares() end
         end, "#e05050")
     Gap(4); Divider()
-    SectionLabel(L["Config_GatheringLocations"])
-    Checkbox(L["Config_OpenGathering"],
+    SectionLabel(L["Config_OpenProfession"])
+    Checkbox(L["Profession_Knowledge"],
         function() return MR.db and MR.db.profile.gatheringLocOpen end,
         function(v)
             MR.db.profile.gatheringLocOpen = v

@@ -221,7 +221,7 @@ local function BuildWelcomeScreen()
     gatheringLbl:SetPoint("LEFT",  gatheringCb, "RIGHT", 4, 4)
     gatheringLbl:SetPoint("RIGHT", gatheringPanel, "RIGHT", -8, 0)
     gatheringLbl:SetJustifyH("LEFT")
-    gatheringLbl:SetText(L["Welcome_Gathering"])
+    gatheringLbl:SetText(L["Welcome_ProfKnowledge"])
 
     local gatheringDesc = gatheringPanel:CreateFontString(nil, "OVERLAY")
     gatheringDesc:SetFont(FONT_ROWS, 10, "OUTLINE")
@@ -229,7 +229,7 @@ local function BuildWelcomeScreen()
     gatheringDesc:SetPoint("BOTTOMRIGHT", gatheringPanel, "BOTTOMRIGHT", -10, 6)
     gatheringDesc:SetJustifyH("LEFT")
     gatheringDesc:SetJustifyV("TOP")
-    gatheringDesc:SetText(L["Welcome_Gathering_Desc"])
+    gatheringDesc:SetText(L["Welcome_ProfKnowledge_Desc"])
 
     yOff = yOff - 80
     MakeDivider(yOff)
@@ -273,6 +273,19 @@ local function BuildWelcomeScreen()
 
     yOff = yOff - 32
 
+    local suppressCb = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+    suppressCb:SetSize(20, 20)
+    suppressCb:SetPoint("TOPLEFT", f, "TOPLEFT", 12, yOff + 6)
+    suppressCb:SetChecked(false)
+
+    local suppressLbl = f:CreateFontString(nil, "OVERLAY")
+    suppressLbl:SetFont(FONT_ROWS, 10, "OUTLINE")
+    suppressLbl:SetPoint("LEFT", suppressCb, "RIGHT", 2, 0)
+    suppressLbl:SetText(L["Welcome_SuppressAll"])
+    suppressLbl:SetTextColor(0.6, 0.6, 0.6)
+
+    yOff = yOff - 24
+
     local confirmBtn = CreateFrame("Button", nil, f, "BackdropTemplate")
     confirmBtn:SetPoint("TOPLEFT",  f, "TOPLEFT",  12, yOff)
     confirmBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -12, yOff)
@@ -293,20 +306,41 @@ local function BuildWelcomeScreen()
             if val then anyEnabled = true end
         end
         if MR.db then
-            MR.db.profile.renownOpen = pendingRenown
-            if pendingRenown and MR.ToggleRenown then
-                MR:ToggleRenown()
+
+            local prevRenown   = MR.db.profile.renownOpen
+            local prevRares    = MR.db.profile.raresOpen
+            local prevGathering = MR.db.profile.gatheringLocOpen
+
+            if pendingRenown ~= prevRenown then
+                MR.db.profile.renownOpen = pendingRenown
+                if pendingRenown and MR.ToggleRenown then
+                    MR:ToggleRenown()
+                elseif not pendingRenown and MR.HideRenown then
+                    MR:HideRenown(false)
+                end
             end
-            MR.db.profile.raresOpen = pendingRares
-            if pendingRares and MR.ToggleRares then
-                MR:ToggleRares()
+            if pendingRares ~= prevRares then
+                MR.db.profile.raresOpen = pendingRares
+                if pendingRares and MR.ToggleRares then
+                    MR:ToggleRares()
+                elseif not pendingRares and MR.HideRares then
+                    MR:HideRares(false)
+                end
             end
-            MR.db.profile.gatheringLocOpen = pendingGathering
-            if pendingGathering and MR.ToggleGatheringLocations then
-                MR:ToggleGatheringLocations()
+            if pendingGathering ~= prevGathering then
+                MR.db.profile.gatheringLocOpen = pendingGathering
+                if pendingGathering and MR.ToggleGatheringLocations then
+                    MR:ToggleGatheringLocations()
+                elseif not pendingGathering and MR.HideGatheringLocations then
+                    MR:HideGatheringLocations(false)
+                end
             end
         end
         MR.db.profile.firstSeen = true
+        MR.db.char.welcomeSeen = true
+        if suppressCb:GetChecked() then
+            MR.db.profile.welcomeSuppressed = true
+        end
         if MR.cfgShine then MR.cfgShine:Stop() end
         f:Hide()
         MR:RefreshUI()
@@ -353,7 +387,8 @@ function MR:ShowWelcomeScreen()
 end
 
 function MR:MaybeShowWelcomeScreen()
-    if self.db.profile.firstSeen then return end
+    if self.db.profile.welcomeSuppressed then return end
+    if self.db.char.welcomeSeen then return end
     local ticks = 0
     local checker = CreateFrame("Frame")
     checker:SetScript("OnUpdate", function(self, dt)

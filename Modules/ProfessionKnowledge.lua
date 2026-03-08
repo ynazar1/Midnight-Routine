@@ -365,7 +365,7 @@ local function BuildGatheringLocationsFrame()
     gearBtn:SetScript("OnEnter",  function()
         gearTex:SetVertexColor(1, 0.82, 0.40, 1)
         GameTooltip:SetOwner(gearBtn, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(L["Gathering_OptionsTitle"], 1, 1, 1)
+        GameTooltip:SetText(L["ProfKnowledge_OptionsTitle"], 1, 1, 1)
         GameTooltip:Show()
     end)
     gearBtn:SetScript("OnLeave",  function()
@@ -381,7 +381,7 @@ local function BuildGatheringLocationsFrame()
     titleTxt:SetPoint("LEFT",  titleIcon, "RIGHT", 5, 0)
     titleTxt:SetPoint("RIGHT", gearBtn, "LEFT", -48, 0)
     titleTxt:SetJustifyH("LEFT")
-    titleTxt:SetText(L["Gathering_Title"])
+    titleTxt:SetText(L["ProfKnowledge_Title"])
 
     local scroll = CreateFrame("ScrollFrame", nil, f)
     scroll:SetPoint("TOPLEFT",     titleBar, "BOTTOMLEFT",  0, -1)
@@ -500,6 +500,10 @@ local function BuildGatheringLocationsFrame()
             for _, item in ipairs(prof.items) do
                 local done = item.questID and C_QuestLog.IsQuestFlaggedCompleted(item.questID)
 
+                if done and db.gatheringHideCompleted then
+                    -- skip completed rows when hide-completed is enabled
+                else
+
                 local row = CreateFrame("Button", nil, content)
                 row:SetPoint("TOPLEFT", content, "TOPLEFT", 10, -yOff)
                 row:SetSize(W - 24, rowHeight)
@@ -591,6 +595,7 @@ local function BuildGatheringLocationsFrame()
                 end)
 
                 yOff = yOff + rowHeight + 1
+                end -- hide-completed check
             end
             yOff = yOff + 4
         end
@@ -739,7 +744,7 @@ local function BuildGatheringConfigFrame()
 
     local ttitle = tbar:CreateFontString(nil, "OVERLAY")
     ttitle:SetFont(FONT_HEADERS, 10, "OUTLINE")
-    ttitle:SetText(L["Gathering_Config_Title"])
+    ttitle:SetText(L["ProfKnowledge_Config_Title"])
     ttitle:SetPoint("LEFT", tbar, "LEFT", 8, 0)
 
     MR_CloseButton(tbar, function() f:Hide() end)
