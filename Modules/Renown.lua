@@ -250,6 +250,7 @@ local function BuildRenownFrame()
     if f.topAccent   then f.topAccent:SetAlpha(f.bgAlpha)   end
     if f.divider     then f.divider:SetAlpha(f.bgAlpha)     end
     f:SetMovable(not db.renownLocked)
+    f:SetScale(db.renownScale or 1.0)
 
     if db.renownShimmer ~= false then
         f:SetScript("OnUpdate", function(self, dt)
