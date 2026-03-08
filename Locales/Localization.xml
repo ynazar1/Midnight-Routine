@@ -4,6 +4,8 @@
     <Script file="zhCN.lua"/>
 	<Script file="zhTW.lua"/>
 	<Script file="esMX.lua"/>
+	<Script file="deDe.lua"/>
 </Ui>
+
 
 
