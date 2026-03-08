@@ -41,6 +41,7 @@ local PROFESSIONS = {
         items = {
             { zone = 2393, x = 47.8, y = 51.6, itemID = 238538, questID = 89117 }, -- Pristine Potion
             { zone = 2393, x = 49.1, y = 75.6, itemID = 238536, questID = 89115 }, -- Freshly Plucked Peacebloom
+            { zone = 2393, x = 45.1, y = 44.8, itemID = 238532, questID = 89111 }, -- Vial of Eversong Oddities
             { zone = 2437, x = 40.4, y = 51.0, itemID = 238535, questID = 89114 }, -- Vial of Zul'Aman Oddities
             { zone = 2536, x = 49.1, y = 23.1, itemID = 238537, questID = 89116 }, -- Measured Ladle
             { zone = 2413, x = 34.7, y = 24.7, itemID = 238534, questID = 89113 }, -- Vial of Rootlands Oddities
@@ -74,6 +75,7 @@ local PROFESSIONS = {
         items = {
             { zone = 2395, x = 63.4, y = 32.6, itemID = 238555, questID = 89107 }, -- Sin'dorei Enchanting Rod
             { zone = 2395, x = 60.8, y = 53.1, itemID = 238551, questID = 89103 }, -- Everblazing Sunmote
+            { zone = 2395, x = 40.2, y = 61.2, itemID = 238549, questID = 89101 }, -- Enchanted Sunfire Silk
             { zone = 2437, x = 40.4, y = 51.2, itemID = 238554, questID = 89106 }, -- Loa-Blessed Dust
             { zone = 2536, x = 49.1, y = 22.7, itemID = 238548, questID = 89100 }, -- Enchanted Amani Mask
             { zone = 2413, x = 65.8, y = 50.2, itemID = 238553, questID = 89105 }, -- Primal Essence Orb
@@ -107,6 +109,7 @@ local PROFESSIONS = {
         items = {
             { zone = 2393, x = 47.7, y = 50.3, itemID = 238578, questID = 89073 }, -- Songwriter's Pen
             { zone = 2395, x = 40.4, y = 61.3, itemID = 238579, questID = 89074 }, -- Songwriter's Quill
+            { zone = 2395, x = 39.3, y = 45.4, itemID = 238577, questID = 89072 }, -- Half-Baked Techniques
             { zone = 2395, x = 48.3, y = 75.6, itemID = 238574, questID = 89069 }, -- Spare Ink
             { zone = 2437, x = 40.5, y = 49.4, itemID = 238573, questID = 89068 }, -- Leather-Bound Techniques
             { zone = 2413, x = 52.7, y = 50.0, itemID = 238576, questID = 89070 }, -- Leftover Sanguithorn Pigment
@@ -157,6 +160,7 @@ local PROFESSIONS = {
         items = {
             { zone = 2393, x = 49.0, y = 75.8, itemID = 238470, questID = 89160 }, -- Simple Leaf Pruners
             { zone = 2395, x = 64.2, y = 30.4, itemID = 238472, questID = 89158 }, -- A Spade
+            { zone = 2437, x = 41.9, y = 45.9, itemID = 238469, questID = 89161 }, -- Sweeping Harvester's Scythe
             { zone = 2437, x = 41.8, y = 45.9, itemID = 238473, questID = 89157, altZone = 2413, altX = 76.1, altY = 51.1 }, -- Harvester's Sickle (also in Harandar — loot once)
             { zone = 2413, x = 51.1, y = 55.7, itemID = 238475, questID = 89155 }, -- Planting Shovel
             { zone = 2413, x = 38.1, y = 66.9, itemID = 238468, questID = 89162 }, -- Bloomed Bud
