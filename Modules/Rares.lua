@@ -237,7 +237,7 @@ BuildRaresFrame = function()
     local db         = MR.db and MR.db.profile or {}
     local W          = db.raresWidth  or DEFAULT_W
     local H          = db.raresHeight or DEFAULT_H
-    local alpha      = db.raresAlpha  or 1.0
+    local alpha      = math.max(db.raresAlpha or 1.0, 0.3)
     local minimized  = db.raresMinimized or false
     local visible    = GetVisibleZones()
     local singleZone = #visible == 1
@@ -441,7 +441,7 @@ BuildRaresFrame = function()
 
     for _, zone in ipairs(visible) do
         local cr, cg, cb  = GetZoneColor(zone)
-        local isCollapsed = collapsed[zone.key]
+        local isCollapsed = (not singleZone) and collapsed[zone.key]
 
         local zCount
         if not singleZone then
@@ -870,7 +870,7 @@ PopulateRaresConfig = function(f)
         yOff = yOff - 22
     end
 
-    Slider(L["BACKGROUND"], 0, 1, 0.05,
+    Slider(L["BACKGROUND"], 0.3, 1, 0.05,
         function() return db.raresAlpha or 1.0 end,
         function(v)
             db.raresAlpha = v
