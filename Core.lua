@@ -444,7 +444,6 @@ function MR:Scan()
     if self.SyncAllRareKills then self:SyncAllRareKills() end
     if self.RefreshRares  then self:RefreshRares()  end
     if self.RefreshRenown then self:RefreshRenown() end
-    if self.RefreshGatheringLocationsFrame then self:RefreshGatheringLocationsFrame() end
 end
 
 local TURN_IN_COMPLETIONS = {

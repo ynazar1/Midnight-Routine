@@ -214,10 +214,34 @@ end
 
 local RebuildGatheringLocationsFrame
 
+local watchedItemIDs = {}
+for _, prof in ipairs(PROFESSIONS) do
+    for _, item in ipairs(prof.items) do
+        if item.itemID then
+            watchedItemIDs[item.itemID] = true
+        end
+    end
+end
+
+local function AllWatchedItemsCached()
+    for id in pairs(watchedItemIDs) do
+        local name = GetItemInfo(id)
+        if not name or name == "" then return false end
+    end
+    return true
+end
+
 local itemCacheFrame = CreateFrame("Frame")
 itemCacheFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 itemCacheFrame:RegisterEvent("QUEST_TURNED_IN")
-itemCacheFrame:SetScript("OnEvent", function()
+itemCacheFrame:RegisterEvent("QUEST_LOG_UPDATE")
+itemCacheFrame:SetScript("OnEvent", function(self, event, itemID)
+    if event == "GET_ITEM_INFO_RECEIVED" then
+        if not watchedItemIDs[itemID] then return end
+        if AllWatchedItemsCached() then
+            self:UnregisterEvent("GET_ITEM_INFO_RECEIVED")
+        end
+    end
     if gatheringLocationsFrame and gatheringLocationsFrame:IsShown() then
         RebuildGatheringLocationsFrame()
     end
@@ -304,7 +328,7 @@ local function SetGatheringWaypoint(item)
     return false, "No waypoint API available"
 end
 
-local function BuildGatheringLocationsFrame()
+local function BuildGatheringLocationsFrame(isRetry)
     local db     = MR.db and MR.db.profile or {}
     local hadProfCache = MR.playerProfessions and next(MR.playerProfessions) ~= nil
     if not hadProfCache and MR.RefreshPlayerProfessions then
@@ -614,12 +638,12 @@ local function BuildGatheringLocationsFrame()
         end
         yOff = 32
 
-        if not hasProfCache and C_Timer then
+        if not hasProfCache and not isRetry and C_Timer then
             C_Timer.After(0.75, function()
                 if gatheringLocationsFrame and gatheringLocationsFrame:IsShown() then
                     if MR.RefreshPlayerProfessions then MR:RefreshPlayerProfessions() end
                     gatheringLocationsFrame:Hide()
-                    gatheringLocationsFrame = BuildGatheringLocationsFrame()
+                    gatheringLocationsFrame = BuildGatheringLocationsFrame(true)
                 end
             end)
         end
