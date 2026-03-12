@@ -169,6 +169,11 @@ local LURE_ITEM_ZULAMAN   = 238653
 local LURE_ITEM_HARANDAR  = 238654  
 local LURE_ITEM_VOIDSTORM = 238655  
 local LURE_ITEM_GRAND     = 238656  
+local LURE_QUEST_EVERSONG = 88545
+local LURE_QUEST_ZULAMAN  = 88526
+local LURE_QUEST_HARANDAR = 88531
+local LURE_QUEST_VOIDSTORM = 88532
+local LURE_QUEST_GRAND    = 88524
 
 local function KnowsLureRecipe(itemID)
     if not itemID then return true end
@@ -189,12 +194,14 @@ MR:RegisterModule({
         {
             key   = "lure_eversong",
             label = L["Skin_Lure_Eversong"],
+            questIds = { LURE_QUEST_EVERSONG },
             max   = 1,
             note  = L["Skin_Lure_Eversong_Note"],
         },
         {
             key       = "lure_zulaman",
             label     = L["Skin_Lure_Zulaman"],
+            questIds  = { LURE_QUEST_ZULAMAN },
             max       = 1,
             note      = L["Skin_Lure_Zulaman_Note"],
             isVisible = function() return KnowsLureRecipe(LURE_ITEM_ZULAMAN) end,
@@ -202,6 +209,7 @@ MR:RegisterModule({
         {
             key       = "lure_harandar",
             label     = L["Skin_Lure_Harandar"],
+            questIds  = { LURE_QUEST_HARANDAR },
             max       = 1,
             note      = L["Skin_Lure_Harandar_Note"],
             isVisible = function() return KnowsLureRecipe(LURE_ITEM_HARANDAR) end,
@@ -209,6 +217,7 @@ MR:RegisterModule({
         {
             key       = "lure_voidstorm",
             label     = L["Skin_Lure_Voidstorm"],
+            questIds  = { LURE_QUEST_VOIDSTORM },
             max       = 1,
             note      = L["Skin_Lure_Voidstorm_Note"],
             isVisible = function() return KnowsLureRecipe(LURE_ITEM_VOIDSTORM) end,
@@ -216,6 +225,7 @@ MR:RegisterModule({
         {
             key       = "lure_grand",
             label     = L["Skin_Lure_Grand"],
+            questIds  = { LURE_QUEST_GRAND },
             max       = 1,
             note      = L["Skin_Lure_Grand_Note"],
             isVisible = function() return KnowsLureRecipe(LURE_ITEM_GRAND) end,
