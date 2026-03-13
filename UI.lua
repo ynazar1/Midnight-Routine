@@ -1026,6 +1026,7 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
     parent = parent or self.content
     widgetBucket = widgetBucket or self.widgets
     local isAutoTracked = (row.questIds ~= nil) or (row.liveKey ~= nil) or (row.spellId ~= nil) or (row.currencyId ~= nil)
+    local hasWaypoint   = row.zone and row.x and row.y
     local isComplete    = not row.noMax and done >= row.max
     local GHOST_H       = 8
     local rowH          = collapsed and GHOST_H or ROW_HEIGHT
@@ -1074,6 +1075,11 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
             GameTooltip:SetOwner(rowFrame, "ANCHOR_RIGHT")
             GameTooltip:SetText(row.label, 1, 1, 1, 1, true)
             if row.note then GameTooltip:AddLine(row.note, 0.7, 0.7, 0.7, true) end
+            if hasWaypoint then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(string.format(L["Gathering_Coords"], row.x, row.y), 0.7, 1, 0.9)
+                GameTooltip:AddLine(L["Gathering_ClickWaypoint"], 0.45, 0.85, 1)
+            end
             if row.tooltipFunc then
                 row.tooltipFunc(GameTooltip)
             end
@@ -1083,7 +1089,7 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
                 GameTooltip:AddLine(L["Tooltip_AutoQuest"], 0.4, 1, 0.6)
             elseif row.spellId then
                 GameTooltip:AddLine(L["Tooltip_AutoItem"], 0.9, 0.6, 1)
-            else
+            elseif not hasWaypoint then
                 GameTooltip:AddLine(L["Tooltip_ManualClick"], 0.5, 0.5, 0.5)
             end
             GameTooltip:Show()
@@ -1094,15 +1100,20 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
         GameTooltip:Hide()
     end)
 
-    if not isAutoTracked then
-        rowFrame:SetScript("OnMouseDown", function(_, button)
-            if button == "LeftButton" then
-                MR:BumpProgress(mod.key, row.key, 1, row.max)
-            elseif button == "RightButton" then
-                MR:BumpProgress(mod.key, row.key, -1, row.max)
+    rowFrame:SetScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" and hasWaypoint then
+            local ok, source = MR:SetWaypoint(row)
+            if ok then
+                print(string.format(L["Waypoint_Set"], source, row.waypointTitle or row.label, row.x, row.y))
+            else
+                print(L["Waypoint_Unavailable"])
             end
-        end)
-    end
+        elseif not isAutoTracked and button == "LeftButton" then
+                MR:BumpProgress(mod.key, row.key, 1, row.max)
+        elseif not isAutoTracked and button == "RightButton" then
+            MR:BumpProgress(mod.key, row.key, -1, row.max)
+        end
+    end)
 
     if isAutoTracked and not row.noMax then
         local dotBtn = CreateFrame("Button", nil, rowFrame)
@@ -1154,7 +1165,8 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
     end
 
     local isCurrencyRow = row.currencyId and row.max and row.max > 0 and not row.noMax
-    local lblRightOff   = isCurrencyRow and -96 or -52
+    local hasCoordText  = hasWaypoint
+    local lblRightOff   = isCurrencyRow and -96 or (hasCoordText and -128 or -52)
 
     local lbl = rowFrame:CreateFontString(nil, "OVERLAY")
     lbl:SetFont(FONT_ROWS, GetFontSize(), "OUTLINE")
@@ -1206,6 +1218,19 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
             countFS:SetTextColor(0.8, 0.8, 0.8)
         else
             countFS:SetTextColor(countColor(done, row.max))
+        end
+    end
+
+    if hasCoordText then
+        local coordsFS = rowFrame:CreateFontString(nil, "OVERLAY")
+        coordsFS:SetFont(FONT_ROWS, math.max(7, GetFontSize() - 1), "OUTLINE")
+        coordsFS:SetPoint("RIGHT", countFS, "LEFT", -8, 0)
+        coordsFS:SetJustifyH("RIGHT")
+        coordsFS:SetText(string.format("%.2f, %.2f", row.x, row.y))
+        if isComplete then
+            coordsFS:SetTextColor(0.4, 0.4, 0.4, 0.6)
+        else
+            coordsFS:SetTextColor(0.65, 0.9, 1, 0.95)
         end
     end
 

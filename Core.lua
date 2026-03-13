@@ -79,11 +79,44 @@ local DEFAULTS = {
         panelOpen    = true,
         modules      = {},
         moduleOrder  = {},
+        settingsMigrated = false,
     },
 }
 
 MR.modules     = {}
 MR.moduleByKey = {}
+
+local function DeepCopy(value)
+    if type(value) ~= "table" then
+        return value
+    end
+
+    local copy = {}
+    for k, v in pairs(value) do
+        copy[k] = DeepCopy(v)
+    end
+    return copy
+end
+
+local function MergeMissing(dst, src)
+    if type(dst) ~= "table" or type(src) ~= "table" then
+        return dst
+    end
+
+    for k, v in pairs(src) do
+        if dst[k] == nil then
+            dst[k] = DeepCopy(v)
+        elseif type(dst[k]) == "table" and type(v) == "table" then
+            MergeMissing(dst[k], v)
+        end
+    end
+
+    return dst
+end
+
+local function IsTableEmpty(t)
+    return type(t) ~= "table" or next(t) == nil
+end
 
 function MR:RegisterModule(def)
     assert(def.key,   "MR module missing .key")
@@ -147,6 +180,50 @@ end
 
 function MR:BumpProgress(moduleKey, rowKey, delta, maxVal)
     self:SetProgress(moduleKey, rowKey, self:GetProgress(moduleKey, rowKey) + delta, maxVal)
+end
+
+local function CleanDisplayLabel(text)
+    if type(text) ~= "string" then
+        return tostring(text or "")
+    end
+    return text:gsub("|c%x%x%x%x%x%x%x%x(.-)%|r", "%1"):gsub("|[cCrR]%x*", "")
+end
+
+function MR:SetWaypoint(target)
+    local mapID = target and target.zone
+    local x = target and target.x and (target.x / 100)
+    local y = target and target.y and (target.y / 100)
+    local tomTom = _G and rawget(_G, "TomTom")
+
+    if not mapID or not x or not y then
+        return false, "Invalid coordinates"
+    end
+
+    local title = target.waypointTitle or CleanDisplayLabel(target.label)
+
+    if tomTom and tomTom.AddWaypoint then
+        local ok = pcall(function()
+            tomTom:AddWaypoint(mapID, x, y, {
+                title = title,
+                persistent = false,
+                minimap = true,
+                world = true,
+            })
+        end)
+        if ok then return true, "TomTom" end
+    end
+
+    if UiMapPoint and UiMapPoint.CreateFromCoordinates and C_Map and C_Map.SetUserWaypoint then
+        local point = UiMapPoint.CreateFromCoordinates(mapID, x, y)
+        if point then
+            C_Map.SetUserWaypoint(point)
+            if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+                C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+            end
+            return true, "Blizzard" end
+    end
+
+    return false, "No waypoint API available"
 end
 
 function MR:GetManualOverride(modKey, rowKey)
@@ -612,6 +689,31 @@ end
 
 function MR:OnInitialize()
     self.db = AceDB:New("MidnightRoutineDB", DEFAULTS, true)
+    self:MigrateLegacySettings()
+end
+
+function MR:MigrateLegacySettings()
+    local ch = self.db and self.db.char
+    local pr = self.db and self.db.profile
+    if not ch or not pr or ch.settingsMigrated then
+        return
+    end
+
+    if IsTableEmpty(ch.modules) and type(pr.modules) == "table" then
+        ch.modules = DeepCopy(pr.modules)
+    elseif type(pr.modules) == "table" then
+        MergeMissing(ch.modules, pr.modules)
+    end
+
+    if IsTableEmpty(ch.moduleOrder) and type(pr.moduleOrder) == "table" and #pr.moduleOrder > 0 then
+        ch.moduleOrder = DeepCopy(pr.moduleOrder)
+    end
+
+    if ch.hideComplete == DEFAULTS.char.hideComplete and pr.hideComplete ~= nil then
+        ch.hideComplete = pr.hideComplete
+    end
+
+    ch.settingsMigrated = true
 end
 
 local INSTANCE_HIDE_TYPES = {
