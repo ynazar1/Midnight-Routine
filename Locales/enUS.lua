@@ -7,7 +7,8 @@ L["Frame_Locked"] = "|cff2ae7c6MidnightRoutine:|r Frame locked."
 L["Frame_Unlocked"] = "|cff2ae7c6MidnightRoutine:|r Frame unlocked."
 L["Minimap_Hidden"] = "|cff2ae7c6MidnightRoutine:|r Minimap icon hidden."
 L["Minimap_Shown"] = "|cff2ae7c6MidnightRoutine:|r Minimap icon shown."
-L["Chat_Commands"] = "|cff2ae7c6/mr|r commands: show, hide, toggle, lock, unlock, reset, minimap, scale, scale <0.5-2>, big, small, welcome, renown, rares, gathering (Profession Knowledge), dmf (toggle Darkmoon test mode)"
+L["Chat_Commands"] = "|cff2ae7c6/mr|r commands: show, hide, toggle, main, lock, unlock, reset, minimap, scale, scale <0.5-2>, big, small, welcome, renown, rares, gathering (Profession Knowledge), dmf (toggle Darkmoon test mode)"
+L["Config_ShowMainFrame"] = "Show Main Frame"
 
 -- MinimapButton / Title
 L["Title"] = "|cff2ae7c6Midnight Routine|r"
@@ -536,3 +537,4 @@ L["ProfKnowledge_DMF_Leatherworking"] = "Darkmoon: Eyes on the Prizes"
 L["ProfKnowledge_DMF_Mining"] = "Darkmoon: Rearm, Reuse, Recycle"
 L["ProfKnowledge_DMF_Skinning"] = "Darkmoon: Tan My Hide"
 L["ProfKnowledge_DMF_Tailoring"] = "Darkmoon: Banners, Banners Everywhere!"
+

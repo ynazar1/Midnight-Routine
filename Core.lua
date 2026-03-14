@@ -731,6 +731,102 @@ function MR:ShouldHideFramesInCurrentInstance()
     return INSTANCE_HIDE_TYPES[instanceType] == true
 end
 
+function MR:CaptureManagedWindowState()
+    local detached = {}
+    if self.detachedFrames then
+        for key, frame in pairs(self.detachedFrames) do
+            if frame and frame:IsShown() then
+                detached[key] = true
+            end
+        end
+    end
+
+    return {
+        panel = self.frame and self.frame:IsShown() or false,
+        renown = self.renownFrame and self.renownFrame:IsShown() or false,
+        rares = self.raresFrame and self.raresFrame:IsShown() or false,
+        gathering = self.gatheringLocationsFrame and self.gatheringLocationsFrame:IsShown() or false,
+        detached = detached,
+    }
+end
+
+function MR:ManagedWindowStateHasVisibleFrames(state)
+    if not state then return false end
+    return state.panel
+        or state.renown
+        or state.rares
+        or state.gathering
+        or (state.detached and next(state.detached) ~= nil)
+end
+
+function MR:HideManagedWindows()
+    if self.frame then self.frame:Hide() end
+    if self.HideDetachedModules then self:HideDetachedModules() end
+    if self.HideConfig then self:HideConfig() end
+    if self.HideRenown then self:HideRenown(false) end
+    if self.HideRares then self:HideRares(false) end
+    if self.HideGatheringLocations then self:HideGatheringLocations(false) end
+end
+
+function MR:RestoreManagedWindows(state)
+    state = state or {}
+
+    if state.panel then
+        if not self.frame and self.BuildUI then
+            self:BuildUI()
+        elseif self.frame then
+            self.frame:Show()
+        end
+    end
+
+    if state.renown and self.EnsureRenownShown then
+        self:EnsureRenownShown()
+    end
+    if state.rares and self.EnsureRaresShown then
+        self:EnsureRaresShown()
+    end
+    if state.gathering and self.EnsureGatheringLocationsShown then
+        self:EnsureGatheringLocationsShown()
+    end
+
+    if state.detached and self.detachedFrames then
+        for key in pairs(state.detached) do
+            local frame = self.detachedFrames[key]
+            if frame then
+                frame:Show()
+            end
+        end
+    end
+end
+
+function MR:ToggleManagedWindows()
+    if self._instanceFramesHidden then
+        return false
+    end
+
+    if self._toggleRestoreState then
+        self:RestoreManagedWindows(self._toggleRestoreState)
+        self._toggleRestoreState = nil
+        return true
+    end
+
+    local state = self:CaptureManagedWindowState()
+    if self:ManagedWindowStateHasVisibleFrames(state) then
+        self._toggleRestoreState = state
+        self:HideManagedWindows()
+        return false
+    end
+
+    if not self.frame and self.BuildUI then
+        self:BuildUI()
+    end
+    if self.frame then
+        self.frame:Show()
+    end
+    self.db.char.panelOpen = true
+    return true
+end
+
 function MR:UpdateInstanceFrameVisibility()
     if not self.db then return end
 
@@ -739,19 +835,8 @@ function MR:UpdateInstanceFrameVisibility()
         if self._instanceFramesHidden then return end
 
         self._instanceFramesHidden = true
-        self._instanceRestoreState = {
-            panel = self.frame and self.frame:IsShown() or false,
-            renown = self.db.profile.renownOpen and true or false,
-            rares = self.db.profile.raresOpen and true or false,
-            gathering = self.db.profile.gatheringLocOpen and true or false,
-        }
-
-        if self.frame then self.frame:Hide() end
-        if self.HideDetachedModules then self:HideDetachedModules() end
-        if self.HideConfig then self:HideConfig() end
-        if self.HideRenown then self:HideRenown(false) end
-        if self.HideRares then self:HideRares(false) end
-        if self.HideGatheringLocations then self:HideGatheringLocations(false) end
+        self._instanceRestoreState = self:CaptureManagedWindowState()
+        self:HideManagedWindows()
         return
     end
 
@@ -761,13 +846,7 @@ function MR:UpdateInstanceFrameVisibility()
     self._instanceFramesHidden = false
     self._instanceRestoreState = nil
 
-    if state.panel and self.frame then self.frame:Show() end
-    if self.ShowDetachedModules then self:ShowDetachedModules() end
-    if state.renown and self.EnsureRenownShown then self:EnsureRenownShown() end
-    if state.rares and self.EnsureRaresShown then self:EnsureRaresShown() end
-    if state.gathering and self.EnsureGatheringLocationsShown then
-        self:EnsureGatheringLocationsShown()
-    end
+    self:RestoreManagedWindows(state)
 end
 
 function MR:OnEnable()
@@ -937,13 +1016,19 @@ SlashCmdList["MIDROUTE"] = function(msg)
         if MR.frame then MR.frame:Show() end
         MR.db.char.panelOpen = true
     elseif msg == "toggle"  then
-        local shouldShow = not (MR.frame and MR.frame:IsShown())
-        if shouldShow then
-            if MR.frame then MR.frame:Show() end
-            MR.db.char.panelOpen = true
-        else
-            if MR.frame then MR.frame:Hide() end
-            MR.db.char.panelOpen = false
+        MR:ToggleManagedWindows()
+    elseif msg == "main" or msg == "main toggle" then
+        if not MR.frame and MR.BuildUI then
+            MR:BuildUI()
+        end
+        if MR.frame then
+            if MR.frame:IsShown() then
+                MR.frame:Hide()
+                MR.db.char.panelOpen = false
+            else
+                MR.frame:Show()
+                MR.db.char.panelOpen = true
+            end
         end
     elseif msg == "minimap" then
         local newHide = not (MR.db.profile.minimap and MR.db.profile.minimap.hide)

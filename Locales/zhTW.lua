@@ -7,7 +7,8 @@ L["Frame_Locked"] = "|cff2ae7c6MidnightRoutine:|r 框架已鎖定。"
 L["Frame_Unlocked"] = "|cff2ae7c6MidnightRoutine:|r 框架已解鎖。"
 L["Minimap_Hidden"] = "|cff2ae7c6MidnightRoutine:|r 小地圖圖示已隱藏。"
 L["Minimap_Shown"] = "|cff2ae7c6MidnightRoutine:|r 小地圖圖示已顯示。"
-L["Chat_Commands"] = "|cff2ae7c6/mr|r 可用指令: show, hide, toggle, lock, unlock, reset, minimap, scale, scale <0.5-2>, big, small, welcome, renown, rares, gathering (Profession Knowledge), dmf (toggle Darkmoon test mode)"
+L["Chat_Commands"] = "|cff2ae7c6/mr|r 可用指令: show, hide, toggle, main, lock, unlock, reset, minimap, scale, scale <0.5-2>, big, small, welcome, renown, rares, gathering (Profession Knowledge), dmf (toggle Darkmoon test mode)"
+L["Config_ShowMainFrame"] = "Show Main Frame"
 
 -- MinimapButton / Title
 L["Title"] = "|cff2ae7c6至暗之夜例行公事|r"
@@ -544,3 +545,4 @@ L["ProfKnowledge_DMF_Leatherworking"] = "暗月：獎品短缺"
 L["ProfKnowledge_DMF_Mining"] = "暗月：整修、循環、重複使用"
 L["ProfKnowledge_DMF_Skinning"] = "暗月：處理我要的皮"
 L["ProfKnowledge_DMF_Tailoring"] = "暗月：旌旗滿天下！"
+
