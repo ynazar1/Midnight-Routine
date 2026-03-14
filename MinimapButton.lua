@@ -38,14 +38,8 @@ local minimapObject = LDB:NewDataObject("MidnightRoutine", {
 
     OnClick = function(_, button)
         if button == "LeftButton" then
-            if MR.frame then
-                if MR.frame:IsShown() then
-                    MR.frame:Hide()
-                    MR.db.char.panelOpen = false
-                else
-                    MR.frame:Show()
-                    MR.db.char.panelOpen = true
-                end
+            if MR.ToggleManagedWindows then
+                MR:ToggleManagedWindows()
             end
         elseif button == "RightButton" then
             if MR.ToggleConfig then MR:ToggleConfig() end

@@ -1295,6 +1295,18 @@ function MR:ToggleConfig()
     cfgFrame:Show()
 end
 
+function MR:IsConfigShown()
+    return cfgFrame and cfgFrame:IsShown() or false
+end
+
+function MR:EnsureConfigShown()
+    if not cfgFrame then
+        cfgFrame = self:BuildConfigFrame()
+    end
+    self:PopulateConfigFrame(cfgFrame)
+    cfgFrame:Show()
+end
+
 function MR:HideConfig()
     if cfgFrame then cfgFrame:Hide() end
 end
@@ -1388,6 +1400,25 @@ function MR:PopulateConfigFrame(f)
     end
     local function Btn(label, onClick) yOff = MR_OptionsBtn(body, yOff, label, onClick, 192, 8, cfgFs) end
 
+    SectionLabel(L["Title"])
+    Checkbox(L["Config_ShowMainFrame"],
+        function() return MR.frame and MR.frame:IsShown() or false end,
+        function(v)
+            if v then
+                if not MR.frame then
+                    MR:BuildUI()
+                elseif not MR.frame:IsShown() then
+                    MR.frame:Show()
+                end
+                MR.db.char.panelOpen = true
+            else
+                if MR.frame then
+                    MR.frame:Hide()
+                end
+                MR.db.char.panelOpen = false
+            end
+        end, "#2ae7c6")
+    Gap(4); Divider()
     SectionLabel(L["Config_RenownTracker"])
     Checkbox(L["Config_OpenRenown"],
         function() return MR.db and MR.db.profile.renownOpen end,
