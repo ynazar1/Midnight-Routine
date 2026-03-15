@@ -167,7 +167,7 @@ function MR:BuildUI()
     f:SetMovable(true)
     f:SetClampedToScreen(true)
 
-    local p = MR.db.profile.position
+    local p = MR:GetWindowLayoutValue("position")
     if p and p.point then
         f:SetPoint(p.point, UIParent, p.relPoint or p.point, p.x or 0, p.y or 0)
     else
@@ -204,7 +204,7 @@ function MR:BuildUI()
     titleBar:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
         local pt, _, rp, x, y = f:GetPoint()
-        MR.db.profile.position = { point = pt, relPoint = rp, x = x, y = y }
+        MR:SetWindowLayoutValue("position", { point = pt, relPoint = rp, x = x, y = y })
     end)
 
     local titleAccent = titleBar:CreateTexture(nil, "ARTWORK")
@@ -330,7 +330,7 @@ function MR:BuildUI()
             if left and top then
                 f:ClearAllPoints()
                 f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
-                MR.db.profile.position = { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top }
+                MR:SetWindowLayoutValue("position", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
             end
             if MR.scroll       then MR.scroll:Hide()       end
             if MR._scrollBg    then MR._scrollBg:Hide()    end
@@ -1320,7 +1320,7 @@ end
 
 function MR:BuildConfigFrame()
     local f = CreateFrame("Frame", "MRConfigFrame", UIParent, "BackdropTemplate")
-    f:SetWidth(240)
+    f:SetWidth(292)
     f:SetFrameStrata("HIGH")
     f:SetClampedToScreen(true)
     f:SetMovable(true)
@@ -1396,6 +1396,13 @@ function MR:PopulateConfigFrame(f)
 
     local yOff = -26
     local cfgFs = MR.db.profile.syncWindowFontSize and GetFontSize() or 9
+    local contentW = (f:GetWidth() or 292) - 16
+    local activePage = MR._cfgPage or "windows"
+
+    if activePage ~= "windows" and activePage ~= "layout" and activePage ~= "modules" and activePage ~= "reset" then
+        activePage = "windows"
+        MR._cfgPage = activePage
+    end
 
     local function Gap(h)          yOff = MR_OptionsGap(body, yOff, h) end
     local function Divider()       yOff = MR_OptionsDivider(body, yOff, 4) end
@@ -1405,189 +1412,304 @@ function MR:PopulateConfigFrame(f)
         if color then r, g, b = hex(color) end
         yOff = MR_OptionsCheckbox(body, yOff, label, getVal, setVal, r, g, b, 4, nil, cfgFs)
     end
-    local function Btn(label, onClick) yOff = MR_OptionsBtn(body, yOff, label, onClick, 192, 8, cfgFs) end
-
-    SectionLabel(L["Title"])
-    Checkbox(L["Config_ShowMainFrame"],
-        function() return MR.frame and MR.frame:IsShown() or false end,
-        function(v)
-            if v then
-                if not MR.frame then
-                    MR:BuildUI()
-                elseif not MR.frame:IsShown() then
-                    MR.frame:Show()
-                end
-                MR.db.char.panelOpen = true
+    local function Btn(label, onClick) yOff = MR_OptionsBtn(body, yOff, label, onClick, math.max(192, contentW), 8, cfgFs) end
+    local function SetLayoutMode(enabled)
+        MR.db.profile.characterWindowLayout = enabled
+        MR:RefreshUI()
+        if MR.frame then
+            MR.frame:ClearAllPoints()
+            local p = MR:GetWindowLayoutValue("position")
+            if p and p.point then
+                MR.frame:SetPoint(p.point, UIParent, p.relPoint or p.point, p.x or 0, p.y or 0)
             else
-                if MR.frame then
-                    MR.frame:Hide()
-                end
-                MR.db.char.panelOpen = false
+                MR.frame:SetPoint("CENTER")
             end
-        end, "#2ae7c6")
-    Gap(4); Divider()
-    SectionLabel(L["Config_RenownTracker"])
-    Checkbox(L["Config_OpenRenown"],
-        function() return MR.db and MR.db.profile.renownOpen end,
-        function(v)
-            MR.db.profile.renownOpen = v
-            if MR.ToggleRenown then MR:ToggleRenown() end
-        end, "#d9b82e")
-    Gap(4); Divider()
-    SectionLabel(L["Config_RaresFrame"])
-    Checkbox(L["Config_OpenRares"],
-        function() return MR.db and MR.db.profile.raresOpen end,
-        function(v)
-            MR.db.profile.raresOpen = v
-            if MR.ToggleRares then MR:ToggleRares() end
-        end, "#e05050")
-    Gap(4); Divider()
-    SectionLabel(L["Config_OpenProfession"])
-    Checkbox(L["Profession_Knowledge"],
-        function() return MR.db and MR.db.profile.gatheringLocOpen end,
-        function(v)
-            MR.db.profile.gatheringLocOpen = v
-            if MR.ToggleGatheringLocations then MR:ToggleGatheringLocations() end
-        end, "#c9853f")
-    Gap(4); Divider()
-    SectionLabel(L["OPTIONS"])
-    Checkbox(L["Config_HideWhenCompleted"],
-        function() return MR.db.char.hideComplete end,
-        function(v)
-            MR.db.char.hideComplete = v
-            for _, mod in ipairs(MR.modules) do
-                if MR.db.char.modules[mod.key] then
-                    MR.db.char.modules[mod.key].hideComplete = nil
-                end
-            end
-            MR:RefreshUI()
-        end)
-    Checkbox(L["Config_LockFrame"],
-        function() return MR.db.profile.locked end,
-        function(v)
-            MR.db.profile.locked = v
-            MR.frame:SetMovable(not v)
-        end)
-    Checkbox(L["Config_HideMinimap"],
-        function() return MR.db.profile.minimap and MR.db.profile.minimap.hide or false end,
-        function(v) MR:SetMinimapHidden(v) end)
-    Checkbox(L["Config_HideInInstances"],
-        function() return MR.db.profile.hideFramesInInstances end,
-        function(v)
-            MR.db.profile.hideFramesInInstances = v
-            if MR.UpdateInstanceFrameVisibility then
-                MR:UpdateInstanceFrameVisibility()
-            end
-        end)
-    Checkbox(L["Config_PeekOnHover"],
-        function() return MR.db.profile.peekOnHover end,
-        function(v) MR:ApplyPeekOnHover(v) end)
-
-    Gap(6)
-    yOff = MR_OptionsSlider(body, yOff, L["WIDTH"], PANEL_MIN_WIDTH, PANEL_MAX_WIDTH, 10,
-        function() return MR.db.profile.width or 260 end,
-        function(v) ApplyWidth(v); MR:PopulateConfigFrame(f) end,
-        0.16, 0.78, 0.75, 8, nil, cfgFs)
-
-    Gap(6)
-    yOff = MR_OptionsSlider(body, yOff, L["HEIGHT"], PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT, 10,
-        function() return MR.db.profile.height or 400 end,
-        function(v) ApplyHeight(v); MR:PopulateConfigFrame(f) end,
-        0.16, 0.75, 0.78, 8, nil, cfgFs)
-
-    Gap(6)
-    yOff = MR_OptionsSlider(body, yOff, L["Config_FontSize"], FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
-        function() return GetFontSize() end,
-        function(v)
-            if MR.db.profile.syncWindowFontSize then
-                MR:ApplyFontSizeToAll(math.floor(v))
-            else
-                ApplyFontSize(math.floor(v))
-            end
-            MR:PopulateConfigFrame(f)
-        end,
-        0.78, 0.55, 0.16, 8, nil, cfgFs)
-
-    local presets = { {"S", 9}, {"M", 11}, {"L", 14}, {"XL", 17} }
-    local btnW = 42
-    for i, p in ipairs(presets) do
-        local pb = CreateFrame("Button", nil, body, "BackdropTemplate")
-        pb:SetSize(btnW - 2, 16)
-        pb:SetPoint("TOPLEFT", body, "TOPLEFT", 8 + (i-1) * btnW, yOff - 18)
-        pb:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-        local isActive = (GetFontSize() == p[2])
-        pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, 1)
-        pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, 1)
-        local pfs = pb:CreateFontString(nil, "OVERLAY")
-        pfs:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
-        pfs:SetPoint("CENTER")
-        pfs:SetText(p[1])
-        pfs:SetTextColor(isActive and 0.2 or 0.6, isActive and 0.95 or 0.75, isActive and 0.75 or 0.65)
-        pb:SetScript("OnClick", function()
-            if MR.db.profile.syncWindowFontSize then
-                MR:ApplyFontSizeToAll(p[2])
-            else
-                ApplyFontSize(p[2])
-            end
-            MR:PopulateConfigFrame(f)
-        end)
-        pb:SetScript("OnEnter", function()
-            pb:SetBackdropColor(0.10, 0.28, 0.28, 1)
-            pb:SetBackdropBorderColor(0.25, 0.90, 0.75, 1)
-        end)
-        pb:SetScript("OnLeave", function()
-            pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, 1)
-            pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, 1)
-        end)
+        end
+        if MR.raresFrame then
+            MR.raresFrame:ClearAllPoints()
+            MR_RestoreFramePos(MR.raresFrame, "raresPos", 580, 0)
+        end
+        if MR.renownFrame then
+            MR.renownFrame:ClearAllPoints()
+            MR_RestoreFramePos(MR.renownFrame, "renownPos", 300, 0)
+        end
+        if MR.gatheringLocationsFrame then
+            MR.gatheringLocationsFrame:ClearAllPoints()
+            MR_RestoreFramePos(MR.gatheringLocationsFrame, "gatheringLocPos", 860, 0)
+        end
+        MR:PopulateConfigFrame(f)
     end
 
-    yOff = yOff - 40
+    do
+        local tabs = {
+            { key = "windows", label = L["Config_TabWindows"] or "Windows" },
+            { key = "layout",  label = L["Config_TabLayout"]  or "Layout"  },
+            { key = "modules", label = L["Config_TabModules"] or "Modules" },
+            { key = "reset",   label = L["Config_TabReset"]   or "Reset"   },
+        }
+        local tabW = math.floor((contentW - 6) / #tabs)
+        local tabY = yOff
+        for i, tab in ipairs(tabs) do
+            local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
+            btn:SetSize(tabW, 18)
+            btn:SetPoint("TOPLEFT", body, "TOPLEFT", 8 + (i - 1) * (tabW + 2), tabY)
+            btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            local isActive = activePage == tab.key
+            btn:SetBackdropColor(isActive and 0.11 or 0.05, isActive and 0.24 or 0.09, isActive and 0.23 or 0.15, 1)
+            btn:SetBackdropBorderColor(isActive and 0.22 or 0.16, isActive and 0.82 or 0.28, isActive and 0.70 or 0.36, 1)
 
-    Gap(2)
-    yOff = MR_OptionsCheckbox(body, yOff, L["Config_SyncFontSize"],
-        function() return MR.db.profile.syncWindowFontSize end,
-        function(v)
-            MR.db.profile.syncWindowFontSize = v
-            if v then MR:ApplyFontSizeToAll(GetFontSize()) end
-            MR:PopulateConfigFrame(f)
-        end,
-        0.78, 0.55, 0.16, 8, nil, cfgFs)
+            local lbl = btn:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+            lbl:SetPoint("CENTER")
+            lbl:SetText(tab.label)
+            lbl:SetTextColor(isActive and 0.85 or 0.62, isActive and 1.0 or 0.75, isActive and 0.92 or 0.70)
 
-    Gap(4)
-    yOff = MR_OptionsSlider(body, yOff, L["BACKGROUND"], 0, 1, 0.05,
-        function() return MR.db.profile.frameAlpha or 1.0 end,
-        function(v)
-            MR.db.profile.frameAlpha = v
-            ApplyTheme()
-            MR:RefreshUI()
-        end,
-        0.40, 0.40, 0.40, 8, nil, cfgFs)
+            btn:SetScript("OnClick", function()
+                MR._cfgPage = tab.key
+                MR:PopulateConfigFrame(f)
+            end)
+            btn:SetScript("OnEnter", function()
+                if activePage ~= tab.key then
+                    btn:SetBackdropColor(0.08, 0.18, 0.24, 1)
+                    btn:SetBackdropBorderColor(0.24, 0.74, 0.68, 1)
+                    lbl:SetTextColor(0.90, 0.98, 0.96)
+                end
+            end)
+            btn:SetScript("OnLeave", function()
+                local selected = (MR._cfgPage or "windows") == tab.key
+                btn:SetBackdropColor(selected and 0.11 or 0.05, selected and 0.24 or 0.09, selected and 0.23 or 0.15, 1)
+                btn:SetBackdropBorderColor(selected and 0.22 or 0.16, selected and 0.82 or 0.28, selected and 0.70 or 0.36, 1)
+                lbl:SetTextColor(selected and 0.85 or 0.62, selected and 1.0 or 0.75, selected and 0.92 or 0.70)
+            end)
+        end
+        yOff = yOff - 26
+    end
 
-    Gap(4)
-    yOff = MR_OptionsSlider(body, yOff, L["SCALE"], 0.5, 2.0, 0.05,
-        function() return MR.db.profile.scale or 1.0 end,
-        function(v)
-            if MR.db.profile.syncWindowScale then
-                MR:ApplyScaleToAll(v)
-            else
-                MR.db.profile.scale = v
-                if MR.frame then MR.frame:SetScale(v) end
-            end
-        end,
-        0.55, 0.22, 0.82, 8, nil, cfgFs)
+    f:SetScript("OnUpdate", nil)
 
-    Gap(2)
-    yOff = MR_OptionsCheckbox(body, yOff, L["Config_SyncScale"],
-        function() return MR.db.profile.syncWindowScale end,
-        function(v)
-            MR.db.profile.syncWindowScale = v
-            if v then MR:ApplyScaleToAll(MR.db.profile.scale or 1.0) end
-            MR:PopulateConfigFrame(f)
-        end,
-        0.55, 0.22, 0.82, 8, nil, cfgFs)
+    if activePage == "windows" then
+        SectionLabel(L["Title"])
+        Checkbox(L["Config_ShowMainFrame"],
+            function() return MR.frame and MR.frame:IsShown() or false end,
+            function(v)
+                if v then
+                    if not MR.frame then
+                        MR:BuildUI()
+                    elseif not MR.frame:IsShown() then
+                        MR.frame:Show()
+                    end
+                    MR.db.char.panelOpen = true
+                else
+                    if MR.frame then
+                        MR.frame:Hide()
+                    end
+                    MR.db.char.panelOpen = false
+                end
+            end, "#2ae7c6")
 
-    Gap(4); Divider()
-    SectionLabel(L["Config_ModuleSettings"])
+        Checkbox(L["Config_OpenRenown"],
+            function() return MR.db and MR.db.profile.renownOpen end,
+            function(v)
+                MR.db.profile.renownOpen = v
+                if MR.ToggleRenown then MR:ToggleRenown() end
+            end, "#d9b82e")
+
+        Checkbox(L["Config_OpenRares"],
+            function() return MR.db and MR.db.profile.raresOpen end,
+            function(v)
+                MR.db.profile.raresOpen = v
+                if MR.ToggleRares then MR:ToggleRares() end
+            end, "#e05050")
+
+        Checkbox(L["Profession_Knowledge"],
+            function() return MR.db and MR.db.profile.gatheringLocOpen end,
+            function(v)
+                MR.db.profile.gatheringLocOpen = v
+                if MR.ToggleGatheringLocations then MR:ToggleGatheringLocations() end
+            end, "#c9853f")
+
+        Gap(4); Divider()
+        SectionLabel(L["OPTIONS"])
+        Checkbox(L["Config_HideWhenCompleted"],
+            function() return MR.db.char.hideComplete end,
+            function(v)
+                MR.db.char.hideComplete = v
+                for _, mod in ipairs(MR.modules) do
+                    if MR.db.char.modules[mod.key] then
+                        MR.db.char.modules[mod.key].hideComplete = nil
+                    end
+                end
+                MR:RefreshUI()
+            end)
+        Checkbox(L["Config_LockFrame"],
+            function() return MR.db.profile.locked end,
+            function(v)
+                MR.db.profile.locked = v
+                MR.frame:SetMovable(not v)
+            end)
+        Checkbox(L["Config_HideMinimap"],
+            function() return MR.db.profile.minimap and MR.db.profile.minimap.hide or false end,
+            function(v) MR:SetMinimapHidden(v) end)
+        Checkbox(L["Config_HideInInstances"],
+            function() return MR.db.profile.hideFramesInInstances end,
+            function(v)
+                MR.db.profile.hideFramesInInstances = v
+                if MR.UpdateInstanceFrameVisibility then
+                    MR:UpdateInstanceFrameVisibility()
+                end
+            end)
+        Checkbox(L["Config_PeekOnHover"],
+            function() return MR.db.profile.peekOnHover end,
+            function(v) MR:ApplyPeekOnHover(v) end)
+    elseif activePage == "layout" then
+        SectionLabel(L["Config_LayoutMode"] or "Layout Mode")
+
+        local modeY = yOff - 4
+        local modeBtnW = math.floor((contentW - 2) / 2)
+        local function CreateModeButton(label, enabled, x)
+            local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
+            btn:SetSize(modeBtnW, 18)
+            btn:SetPoint("TOPLEFT", body, "TOPLEFT", x, modeY)
+            btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            local active = MR.db.profile.characterWindowLayout == enabled
+            btn:SetBackdropColor(active and 0.12 or 0.05, active and 0.30 or 0.09, active and 0.24 or 0.16, 1)
+            btn:SetBackdropBorderColor(active and 0.24 or 0.16, active and 0.82 or 0.28, active and 0.70 or 0.36, 1)
+
+            local lbl = btn:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+            lbl:SetPoint("CENTER")
+            lbl:SetText(label)
+            lbl:SetTextColor(active and 0.92 or 0.70, active and 1.0 or 0.78, active and 0.94 or 0.74)
+
+            btn:SetScript("OnClick", function() SetLayoutMode(enabled) end)
+            btn:SetScript("OnEnter", function()
+                if MR.db.profile.characterWindowLayout ~= enabled then
+                    btn:SetBackdropColor(0.08, 0.20, 0.25, 1)
+                    btn:SetBackdropBorderColor(0.24, 0.74, 0.68, 1)
+                    lbl:SetTextColor(0.92, 0.98, 0.96)
+                end
+            end)
+            btn:SetScript("OnLeave", function()
+                local selected = MR.db.profile.characterWindowLayout == enabled
+                btn:SetBackdropColor(selected and 0.12 or 0.05, selected and 0.30 or 0.09, selected and 0.24 or 0.16, 1)
+                btn:SetBackdropBorderColor(selected and 0.24 or 0.16, selected and 0.82 or 0.28, selected and 0.70 or 0.36, 1)
+                lbl:SetTextColor(selected and 0.92 or 0.70, selected and 1.0 or 0.78, selected and 0.94 or 0.74)
+            end)
+        end
+
+        CreateModeButton(L["Config_LayoutShared"] or "Shared", false, 8)
+        CreateModeButton(L["Config_LayoutCharacter"] or "Per Character", true, 8 + modeBtnW + 2)
+        yOff = yOff - 30
+
+        Divider()
+        SectionLabel(L["Config_Display"])
+
+        yOff = MR_OptionsSlider(body, yOff, L["WIDTH"], PANEL_MIN_WIDTH, PANEL_MAX_WIDTH, 10,
+            function() return MR.db.profile.width or 260 end,
+            function(v) ApplyWidth(v); MR:PopulateConfigFrame(f) end,
+            0.16, 0.78, 0.75, 8, nil, cfgFs)
+
+        Gap(6)
+        yOff = MR_OptionsSlider(body, yOff, L["HEIGHT"], PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT, 10,
+            function() return MR.db.profile.height or 400 end,
+            function(v) ApplyHeight(v); MR:PopulateConfigFrame(f) end,
+            0.16, 0.75, 0.78, 8, nil, cfgFs)
+
+        Gap(6)
+        yOff = MR_OptionsSlider(body, yOff, L["Config_FontSize"], FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
+            function() return GetFontSize() end,
+            function(v)
+                if MR.db.profile.syncWindowFontSize then
+                    MR:ApplyFontSizeToAll(math.floor(v))
+                else
+                    ApplyFontSize(math.floor(v))
+                end
+                MR:PopulateConfigFrame(f)
+            end,
+            0.78, 0.55, 0.16, 8, nil, cfgFs)
+
+        local presets = { {"S", 9}, {"M", 11}, {"L", 14}, {"XL", 17} }
+        local btnW = math.floor((contentW - 6) / #presets)
+        for i, p in ipairs(presets) do
+            local pb = CreateFrame("Button", nil, body, "BackdropTemplate")
+            pb:SetSize(btnW, 16)
+            pb:SetPoint("TOPLEFT", body, "TOPLEFT", 8 + (i - 1) * (btnW + 2), yOff - 18)
+            pb:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            local isActive = (GetFontSize() == p[2])
+            pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, 1)
+            pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, 1)
+            local pfs = pb:CreateFontString(nil, "OVERLAY")
+            pfs:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+            pfs:SetPoint("CENTER")
+            pfs:SetText(p[1])
+            pfs:SetTextColor(isActive and 0.2 or 0.6, isActive and 0.95 or 0.75, isActive and 0.75 or 0.65)
+            pb:SetScript("OnClick", function()
+                if MR.db.profile.syncWindowFontSize then
+                    MR:ApplyFontSizeToAll(p[2])
+                else
+                    ApplyFontSize(p[2])
+                end
+                MR:PopulateConfigFrame(f)
+            end)
+            pb:SetScript("OnEnter", function()
+                pb:SetBackdropColor(0.10, 0.28, 0.28, 1)
+                pb:SetBackdropBorderColor(0.25, 0.90, 0.75, 1)
+            end)
+            pb:SetScript("OnLeave", function()
+                pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, 1)
+                pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, 1)
+            end)
+        end
+
+        yOff = yOff - 40
+
+        Gap(2)
+        yOff = MR_OptionsCheckbox(body, yOff, L["Config_SyncFontSize"],
+            function() return MR.db.profile.syncWindowFontSize end,
+            function(v)
+                MR.db.profile.syncWindowFontSize = v
+                if v then MR:ApplyFontSizeToAll(GetFontSize()) end
+                MR:PopulateConfigFrame(f)
+            end,
+            0.78, 0.55, 0.16, 8, nil, cfgFs)
+
+        Gap(4)
+        yOff = MR_OptionsSlider(body, yOff, L["BACKGROUND"], 0, 1, 0.05,
+            function() return MR.db.profile.frameAlpha or 1.0 end,
+            function(v)
+                MR.db.profile.frameAlpha = v
+                ApplyTheme()
+                MR:RefreshUI()
+            end,
+            0.40, 0.40, 0.40, 8, nil, cfgFs)
+
+        Gap(4)
+        yOff = MR_OptionsSlider(body, yOff, L["SCALE"], 0.5, 2.0, 0.05,
+            function() return MR.db.profile.scale or 1.0 end,
+            function(v)
+                if MR.db.profile.syncWindowScale then
+                    MR:ApplyScaleToAll(v)
+                else
+                    MR.db.profile.scale = v
+                    if MR.frame then MR.frame:SetScale(v) end
+                end
+            end,
+            0.55, 0.22, 0.82, 8, nil, cfgFs)
+
+        Gap(2)
+        yOff = MR_OptionsCheckbox(body, yOff, L["Config_SyncScale"],
+            function() return MR.db.profile.syncWindowScale end,
+            function(v)
+                MR.db.profile.syncWindowScale = v
+                if v then MR:ApplyScaleToAll(MR.db.profile.scale or 1.0) end
+                MR:PopulateConfigFrame(f)
+            end,
+            0.55, 0.22, 0.82, 8, nil, cfgFs)
+    end
+
+    if activePage == "modules" then
+        Gap(4); Divider()
+        SectionLabel(L["Config_ModuleSettings"])
 
     if not MR._cfgExpanded then MR._cfgExpanded = {} end
 
@@ -1805,7 +1927,7 @@ function MR:PopulateConfigFrame(f)
                 local ROW_H = 22
                 local headerFr = CreateFrame("Frame", nil, body)
                 headerFr:SetPoint("TOPLEFT", body, "TOPLEFT", 4, yOff)
-                headerFr:SetSize(196, ROW_H)
+                headerFr:SetSize(contentW, ROW_H)
 
                 local grip = CreateFrame("Button", nil, headerFr, "BackdropTemplate")
                 grip:SetSize(16, ROW_H - 2)
@@ -1876,7 +1998,7 @@ function MR:PopulateConfigFrame(f)
             local ROW_H = 22
             local headerFr = CreateFrame("Frame", nil, body)
             headerFr:SetPoint("TOPLEFT", body, "TOPLEFT", 4, yOff)
-            headerFr:SetSize(196, ROW_H)
+            headerFr:SetSize(contentW, ROW_H)
 
             local cb = CreateFrame("CheckButton", nil, headerFr, "UICheckButtonTemplate")
             cb:SetSize(20, 20)
@@ -1986,7 +2108,7 @@ function MR:PopulateConfigFrame(f)
 
                     local rowFr = CreateFrame("Frame", nil, body)
                     rowFr:SetPoint("TOPLEFT", body, "TOPLEFT", 18, yOff)
-                    rowFr:SetSize(176, 18)
+                    rowFr:SetSize(contentW - 20, 18)
 
                     local rdot = rowFr:CreateTexture(nil, "ARTWORK")
                     rdot:SetSize(5, 5)
@@ -2082,28 +2204,30 @@ function MR:PopulateConfigFrame(f)
             end
         end
     end
+    end
 
-    Gap(4); Divider()
-    SectionLabel(L["RESETS"])
-    Btn(L["Config_ResetEverything"], function()
-        MR.db.char.progress = {}
-        MR.db.profile.headerColors = {}
-        MR.db.profile.rowColors = {}
-        MR:Scan()
-        MR:PopulateConfigFrame(f)
-    end)
-    Btn(L["Config_ResetColors"], function()
-        MR.db.profile.headerColors = {}
-        MR.db.profile.rowColors = {}
-        MR:RefreshUI()
-        MR:PopulateConfigFrame(f)
-    end)
-    Btn(L["Config_ResetOrder"], function()
-        MR.db.char.moduleOrder = {}
-        MR._orderedModulesCache = nil
-        MR:RefreshUI()
-        MR:PopulateConfigFrame(f)
-    end)
+    if activePage == "reset" then
+        SectionLabel(L["RESETS"])
+        Btn(L["Config_ResetEverything"], function()
+            MR.db.char.progress = {}
+            MR.db.profile.headerColors = {}
+            MR.db.profile.rowColors = {}
+            MR:Scan()
+            MR:PopulateConfigFrame(f)
+        end)
+        Btn(L["Config_ResetColors"], function()
+            MR.db.profile.headerColors = {}
+            MR.db.profile.rowColors = {}
+            MR:RefreshUI()
+            MR:PopulateConfigFrame(f)
+        end)
+        Btn(L["Config_ResetOrder"], function()
+            MR.db.char.moduleOrder = {}
+            MR._orderedModulesCache = nil
+            MR:RefreshUI()
+            MR:PopulateConfigFrame(f)
+        end)
+    end
 
     Gap(8)
     local totalH = math.abs(yOff) + 8
