@@ -146,6 +146,42 @@ local WC          = MR_WC
 local countColor  = MR_CountColor
 local SetDotColor = MR_SetDotColor
 
+local function GetWindowLayoutValue(key)
+    if MR and MR.GetWindowLayoutValue then
+        return MR:GetWindowLayoutValue(key)
+    end
+
+    if not (MR and MR.db and key) then return nil end
+
+    if MR.db.profile and MR.db.profile.characterWindowLayout == true then
+        local charLayout = MR.db.char and MR.db.char.windowLayout
+        if charLayout and charLayout[key] ~= nil then
+            return charLayout[key]
+        end
+    end
+
+    return MR.db.profile and MR.db.profile[key]
+end
+
+local function SetWindowLayoutValue(key, value)
+    if MR and MR.SetWindowLayoutValue then
+        MR:SetWindowLayoutValue(key, value)
+        return
+    end
+
+    if not (MR and MR.db and key) then return end
+
+    if MR.db.profile and MR.db.profile.characterWindowLayout == true then
+        if not MR.db.char.windowLayout then
+            MR.db.char.windowLayout = {}
+        end
+        MR.db.char.windowLayout[key] = value
+        return
+    end
+
+    MR.db.profile[key] = value
+end
+
 function MR:BuildUI()
     if self.frame then self.frame:Show() return end
 
@@ -167,7 +203,7 @@ function MR:BuildUI()
     f:SetMovable(true)
     f:SetClampedToScreen(true)
 
-    local p = MR:GetWindowLayoutValue("position")
+    local p = GetWindowLayoutValue("position")
     if p and p.point then
         f:SetPoint(p.point, UIParent, p.relPoint or p.point, p.x or 0, p.y or 0)
     else
@@ -204,7 +240,7 @@ function MR:BuildUI()
     titleBar:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
         local pt, _, rp, x, y = f:GetPoint()
-        MR:SetWindowLayoutValue("position", { point = pt, relPoint = rp, x = x, y = y })
+        SetWindowLayoutValue("position", { point = pt, relPoint = rp, x = x, y = y })
     end)
 
     local titleAccent = titleBar:CreateTexture(nil, "ARTWORK")
@@ -330,7 +366,7 @@ function MR:BuildUI()
             if left and top then
                 f:ClearAllPoints()
                 f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
-                MR:SetWindowLayoutValue("position", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
+    SetWindowLayoutValue("position", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
             end
             if MR.scroll       then MR.scroll:Hide()       end
             if MR._scrollBg    then MR._scrollBg:Hide()    end
@@ -1418,7 +1454,7 @@ function MR:PopulateConfigFrame(f)
         MR:RefreshUI()
         if MR.frame then
             MR.frame:ClearAllPoints()
-            local p = MR:GetWindowLayoutValue("position")
+            local p = GetWindowLayoutValue("position")
             if p and p.point then
                 MR.frame:SetPoint(p.point, UIParent, p.relPoint or p.point, p.x or 0, p.y or 0)
             else
