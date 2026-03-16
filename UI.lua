@@ -191,6 +191,16 @@ local function WBStatusColor(entry)
     return 0.55, 0.72, 0.95
 end
 
+local function WBClassColor(entry)
+    local classFile = entry and entry.classFile
+    local classColor = classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
+    if classColor then
+        return classColor.r, classColor.g, classColor.b
+    end
+
+    return WBStatusColor(entry)
+end
+
 local function WBCreateScrollArea(parent, topLeftAnchor, bottomRightAnchor)
     local scroll = CreateFrame("ScrollFrame", nil, parent)
     scroll:SetPoint(topLeftAnchor[1], topLeftAnchor[2], topLeftAnchor[3], topLeftAnchor[4], topLeftAnchor[5])
@@ -398,7 +408,7 @@ function MR:RefreshWarbandBoard()
         btn:SetBackdrop(MR_MakeBackdrop())
 
         local isSelected = (selected.key == entry.key)
-        local sr, sg, sb = WBStatusColor(entry)
+        local sr, sg, sb = WBClassColor(entry)
         if isSelected then
             btn:SetBackdropColor(0.08, 0.16, 0.28, 0.98)
             btn:SetBackdropBorderColor(sr, sg, sb, 1)

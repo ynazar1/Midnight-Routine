@@ -209,6 +209,7 @@ function MR:GetWarbandWeeklyData()
                 key = charKey,
                 name = name,
                 realm = realm,
+                classFile = charData.classFile,
                 isCurrent = (charKey == currentKey),
                 stale = stale,
                 hidden = hidden,
@@ -1141,6 +1142,10 @@ function MR:OnEnable()
 end
 
 function MR:OnEnteringWorld()
+    local _, classFile = UnitClass("player")
+    if classFile then
+        self.db.char.classFile = classFile
+    end
     self.db.char.lastSyncAt = GetServerTime()
     self:RefreshPlayerProfessions()
     self:BuildSpellIndex()
