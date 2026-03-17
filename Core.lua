@@ -227,7 +227,9 @@ function MR:GetWarbandWeeklyData()
                     local moduleEnabled = not (moduleSettings and moduleSettings.enabled == false)
                     local moduleVisible = moduleEnabled and (not mod.isVisible or mod:isVisible())
                     local modProgress = charData.progress[mod.key] or {}
+                    local hasLiveProfession = snapshot.isCurrent and mod.profSkillLine and self.playerProfessions and self.playerProfessions[mod.profSkillLine]
                     local hasProfessionData = (not mod.profSkillLine)
+                        or hasLiveProfession
                         or HasAnyTableValue(modProgress)
                         or (type(charData.manualOverrides) == "table" and HasAnyTableValue(charData.manualOverrides[mod.key]))
                         or (moduleSettings ~= nil)
@@ -772,6 +774,18 @@ function MR:Scan()
 
                     local val = row.noMax and raw or math.min(raw, row.max or raw)
                     if WriteProgress(progress, mod.key, row.key, val, self.db.char.manualOverrides) then dirty = true end
+                end
+            end
+            if row.itemId then
+                local count = 0
+                if C_Item and C_Item.GetItemCount then
+                    count = C_Item.GetItemCount(row.itemId, false, false, true) or 0
+                elseif GetItemCount then
+                    count = GetItemCount(row.itemId, false, false) or 0
+                end
+
+                if WriteProgress(progress, mod.key, row.key, row.noMax and count or math.min(count, row.max or count), self.db.char.manualOverrides) then
+                    dirty = true
                 end
             end
         end

@@ -1906,7 +1906,7 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
     colW = colW or ((MR.db.profile.width or 260) - 13)
     parent = parent or self.content
     widgetBucket = widgetBucket or self.widgets
-    local isAutoTracked = (row.questIds ~= nil) or (row.liveKey ~= nil) or (row.spellId ~= nil) or (row.currencyId ~= nil)
+    local isAutoTracked = (row.questIds ~= nil) or (row.liveKey ~= nil) or (row.spellId ~= nil) or (row.currencyId ~= nil) or (row.itemId ~= nil)
     local hasWaypoint   = row.zone and row.x and row.y
     local isComplete    = not row.noMax and done >= row.max
     local GHOST_H       = 8
@@ -1952,6 +1952,15 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
             GameTooltip:SetCurrencyByID(row.currencyId)
             GameTooltip:AddLine(L["Tooltip_AutoBlizzard"], 0.4, 0.8, 1)
             GameTooltip:Show()
+        elseif row.itemId and not row.noBlizzardTooltip then
+            GameTooltip:SetOwner(rowFrame, "ANCHOR_RIGHT")
+            if GameTooltip.SetItemByID then
+                GameTooltip:SetItemByID(row.itemId)
+            else
+                GameTooltip:SetHyperlink("item:" .. row.itemId)
+            end
+            GameTooltip:AddLine(L["Tooltip_AutoItem"], 0.9, 0.6, 1)
+            GameTooltip:Show()
         else
             GameTooltip:SetOwner(rowFrame, "ANCHOR_RIGHT")
             GameTooltip:SetText(row.label, 1, 1, 1, 1, true)
@@ -1968,7 +1977,7 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
                 GameTooltip:AddLine(L["Tooltip_AutoBlizzard"], 0.4, 0.8, 1)
             elseif row.questIds then
                 GameTooltip:AddLine(L["Tooltip_AutoQuest"], 0.4, 1, 0.6)
-            elseif row.spellId then
+            elseif row.spellId or row.itemId then
                 GameTooltip:AddLine(L["Tooltip_AutoItem"], 0.9, 0.6, 1)
             elseif not hasWaypoint then
                 GameTooltip:AddLine(L["Tooltip_ManualClick"], 0.5, 0.5, 0.5)
