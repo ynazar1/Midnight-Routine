@@ -1,4 +1,4 @@
-﻿local L = LibStub("AceLocale-3.0"):NewLocale("MidnightRoutine", "deDE", true)
+﻿local L = LibStub("AceLocale-3.0"):NewLocale("MidnightRoutine", "deDE")
 if not L then return end
 
 -- Core / Chat
