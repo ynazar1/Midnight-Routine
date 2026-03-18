@@ -1015,7 +1015,7 @@ function MR:DoWeeklyReset()
     self.db.char.raresKills = {}
     self:RefreshUI()
     self:ScheduleTimer(function() self:Scan() end, 20)
-    print(L["Weekly_Reset"])
+    print(L["Weekly_Reset"] or "|cff2ae7c6MidnightRoutine:|r Weekly reset applied.")
 end
 
 function MR:OnInitialize()
