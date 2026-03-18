@@ -47,6 +47,17 @@ local function AnyFrameHovered()
     return false
 end
 
+local function GetMovableHostFrame(frame)
+    local current = frame
+    while current do
+        if current.IsMovable and current:IsMovable() then
+            return current
+        end
+        current = current.GetParent and current:GetParent() or nil
+    end
+    return nil
+end
+
 local peekUpdater = CreateFrame("Frame")
 peekUpdater:Hide()
 
@@ -1681,7 +1692,9 @@ function MR:RefreshUI()
                     frame.scroll:SetVerticalScroll(maxScroll)
                 end
             end
-            if not (savedSize and savedSize.height) then
+            if not MR:IsModuleOpen(mod.key) then
+                frame:SetHeight(HEADER_HEIGHT + 12)
+            elseif not (savedSize and savedSize.height) then
                 frame:SetHeight(math.max(sectionHeight + 12, HEADER_HEIGHT + 48))
             end
 
@@ -1824,14 +1837,14 @@ function MR:BuildSection(mod, yOff, xOff, colW, col, parent, widgetBucket, opts)
     hdrFrame:SetScript("OnDragStart", function()
         if not opts.detached or MR.db.profile.locked then return end
         hdrFrame._dragged = true
-        local host = parent and parent:GetParent()
+        local host = GetMovableHostFrame(parent)
         if host then
             host:StartMoving()
         end
     end)
     hdrFrame:SetScript("OnDragStop", function()
         if not opts.detached then return end
-        local host = parent and parent:GetParent()
+        local host = GetMovableHostFrame(parent)
         if host then
             host:StopMovingOrSizing()
             local pt, _, rp, x, y = host:GetPoint()
