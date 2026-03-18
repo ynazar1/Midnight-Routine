@@ -415,7 +415,7 @@ local function BuildGatheringLocationsFrame(isRetry)
     titleBar:SetScript("OnDragStop", function()
         frame:StopMovingOrSizing()
         local point, _, relPoint, x, y = frame:GetPoint()
-        if MR.db then MR.db.profile.gatheringLocPos = { point = point, relPoint = relPoint, x = x, y = y } end
+        if MR.db then MR:SetWindowLayoutValue("gatheringLocPos", { point = point, relPoint = relPoint, x = x, y = y }) end
     end)
 
     local titleIcon = titleBar:CreateTexture(nil, "ARTWORK")
@@ -477,9 +477,13 @@ local function BuildGatheringLocationsFrame(isRetry)
     local trackBg = track:CreateTexture(nil, "BACKGROUND")
     trackBg:SetAllPoints()
     trackBg:SetColorTexture(0, 0, 0, 0.3)
-    local thumb = track:CreateTexture(nil, "OVERLAY")
+    local thumb = CreateFrame("Button", nil, track)
     thumb:SetWidth(5)
-    thumb:SetColorTexture(0.80, 0.53, 0.20, 0.6)
+    thumb:EnableMouse(true)
+    thumb:RegisterForClicks("LeftButtonDown", "LeftButtonUp")
+    local thumbTex = thumb:CreateTexture(nil, "OVERLAY")
+    thumbTex:SetAllPoints()
+    thumbTex:SetColorTexture(0.80, 0.53, 0.20, 0.6)
 
     local function UpdateScrollBar()
         local viewH, contentH = scroll:GetHeight(), content:GetHeight()
@@ -492,6 +496,73 @@ local function BuildGatheringLocationsFrame(isRetry)
         thumb:ClearAllPoints()
         thumb:SetPoint("TOPLEFT", track, "TOPLEFT", 0, -((trackH - thumbH) * pct))
     end
+
+    local function SetScrollFromCursor(cursorY, grabOffset)
+        local viewH = scroll:GetHeight()
+        local contentH = content:GetHeight()
+        local maxScroll = math.max(contentH - viewH, 0)
+        if maxScroll <= 0 then
+            scroll:SetVerticalScroll(0)
+            UpdateScrollBar()
+            return
+        end
+
+        local trackTop = track:GetTop()
+        local trackBottom = track:GetBottom()
+        if not trackTop or not trackBottom then return end
+
+        local trackH = math.max(trackTop - trackBottom, 1)
+        local thumbH = thumb:GetHeight()
+        local movable = math.max(trackH - thumbH, 1)
+        local offset = grabOffset or (thumbH * 0.5)
+        local y = math.max(0, math.min((trackTop - cursorY) - offset, movable))
+        local pct = y / movable
+        scroll:SetVerticalScroll(maxScroll * pct)
+        UpdateScrollBar()
+    end
+
+    track:SetScript("OnMouseDown", function(_, button)
+        if button ~= "LeftButton" or not thumb:IsShown() then return end
+        local _, cursorY = GetCursorPosition()
+        cursorY = cursorY / UIParent:GetEffectiveScale()
+        SetScrollFromCursor(cursorY, thumb:GetHeight() * 0.5)
+        thumb._grabOffset = thumb:GetHeight() * 0.5
+        thumb:SetScript("OnUpdate", function(self)
+            if not IsMouseButtonDown("LeftButton") then
+                self._grabOffset = nil
+                self:SetScript("OnUpdate", nil)
+                return
+            end
+
+            local _, dragCursorY = GetCursorPosition()
+            dragCursorY = dragCursorY / UIParent:GetEffectiveScale()
+            SetScrollFromCursor(dragCursorY, self._grabOffset)
+        end)
+    end)
+
+    thumb:SetScript("OnMouseDown", function(self, button)
+        if button ~= "LeftButton" or not self:IsShown() then return end
+        local _, cursorY = GetCursorPosition()
+        cursorY = cursorY / UIParent:GetEffectiveScale()
+        local thumbTop = self:GetTop()
+        self._grabOffset = thumbTop and (thumbTop - cursorY) or (self:GetHeight() * 0.5)
+        self:SetScript("OnUpdate", function(btn)
+            if not IsMouseButtonDown("LeftButton") then
+                btn._grabOffset = nil
+                btn:SetScript("OnUpdate", nil)
+                return
+            end
+
+            local _, dragCursorY = GetCursorPosition()
+            dragCursorY = dragCursorY / UIParent:GetEffectiveScale()
+            SetScrollFromCursor(dragCursorY, btn._grabOffset)
+        end)
+    end)
+
+    thumb:SetScript("OnMouseUp", function(self)
+        self._grabOffset = nil
+        self:SetScript("OnUpdate", nil)
+    end)
 
     scroll:SetScript("OnMouseWheel", function(_, delta)
         scroll:SetVerticalScroll(math.max(0, math.min(scroll:GetVerticalScroll() - delta * 30, math.max(content:GetHeight() - scroll:GetHeight(), 0))))

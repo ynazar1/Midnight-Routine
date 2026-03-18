@@ -86,7 +86,7 @@ local function BuildRenownFrame()
     titleBar:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
         local pt, _, rp, x, y = f:GetPoint()
-        if MR.db then MR.db.profile.renownPos = { point = pt, relPoint = rp, x = x, y = y } end
+        if MR.db then MR:SetWindowLayoutValue("renownPos", { point = pt, relPoint = rp, x = x, y = y }) end
     end)
 
     local titleIcon = titleBar:CreateTexture(nil, "ARTWORK")

@@ -9,6 +9,25 @@ local HOLIDAY_TIMEWALKING = {
     1500,
 }
 
+local MIDNIGHT_MAP_IDS = {
+    [2393] = true,
+    [2395] = true,
+    [2405] = true,
+    [2413] = true,
+    [2437] = true,
+    [2576] = true,
+}
+
+local WORLD_BOSS_ROTATION = {
+    { key = "luashal",    label = L["WB_Luashal_Label"],    note = L["WB_Luashal_Note"],    zone = 2395, match = "luashal", questId = 92560 },
+    { key = "cragpine",   label = L["WB_Cragpine_Label"],   note = L["WB_Cragpine_Note"],   zone = 2437, match = "cragpine", questId = 92123 },
+    { key = "thormbelan", label = L["WB_Thormbelan_Label"], note = L["WB_Thormbelan_Note"], zone = 2413, match = "thormbelan", questId = 92034 },
+    { key = "predaxas",   label = L["WB_Predaxas_Label"],   note = L["WB_Predaxas_Note"],   zone = 2405, match = "predaxas", questId = 92636 },
+}
+
+local WEEK_SECONDS = 7 * 24 * 60 * 60
+local MIDNIGHT_SEASON_START_RESET = 1773727200
+
 local function IsHolidayActive(holidayId)
     if not C_DateAndTime or not C_DateAndTime.GetHolidayInfo then return false end
     local info = C_DateAndTime.GetHolidayInfo(holidayId)
@@ -22,21 +41,157 @@ local function IsTimewalkingActive()
     return false
 end
 
-local MAPID_ISLE_OF_DORN     = 2248
-local MAPID_RINGING_DEEPS    = 2249
-local MAPID_HALLOWFALL       = 2255
-local MAPID_AZJ_KAHET        = 2346
+local function NormalizeText(text)
+    if type(text) ~= "string" then
+        return ""
+    end
 
-local function IsInMap(mapId)
+    return text:lower():gsub("[^%a%d]", "")
+end
+
+local function GetWorldBossQuestCache()
+    local profile = MR.db and MR.db.profile
+    if not profile then
+        return {}
+    end
+
+    if not profile.worldBossQuestIDs then
+        profile.worldBossQuestIDs = {}
+    end
+
+    return profile.worldBossQuestIDs
+end
+
+local function SyncWorldBossKillRecord(bossKey)
+    local char = MR.db and MR.db.char
+    if not char or not bossKey then return end
+
+    if not char.worldBossKills then
+        char.worldBossKills = {}
+    end
+
+    local weekKey = MR:GetCurrentWeekKey()
+    if not weekKey or weekKey == 0 then return end
+
+    char.worldBossKills[bossKey] = {
+        w = weekKey,
+        t = GetServerTime(),
+    }
+end
+
+local function GetWorldBossKillStatus(bossKey)
+    local char = MR.db and MR.db.char
+    if not char or not char.worldBossKills then return nil end
+
+    local weekKey = MR:GetCurrentWeekKey()
+    if not weekKey or weekKey == 0 then return nil end
+
+    local rec = char.worldBossKills[bossKey]
+    if not rec or rec.w ~= weekKey then
+        return nil
+    end
+
+    return "week"
+end
+
+local function IsInMidnightMap()
     local current = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
     if not current then return false end
+
     local checked = 0
     while current and checked < 10 do
-        if current == mapId then return true end
+        if MIDNIGHT_MAP_IDS[current] then
+            return true
+        end
         local info = C_Map.GetMapInfo(current)
         current = info and info.parentMapID
         checked = checked + 1
     end
+
+    return false
+end
+
+local function FindWorldBossQuestID(mapID, matchText, bossKey)
+    local cache = GetWorldBossQuestCache()
+
+    if not (C_TaskQuest and C_TaskQuest.GetQuestsForPlayerByMapID and C_QuestLog and C_QuestLog.GetTitleForQuestID) then
+        return bossKey and cache[bossKey] or nil
+    end
+
+    local quests = C_TaskQuest.GetQuestsForPlayerByMapID(mapID)
+    if not quests then
+        return bossKey and cache[bossKey] or nil
+    end
+
+    local needle = NormalizeText(matchText)
+    for _, info in ipairs(quests) do
+        local questID = info.questId or info.questID
+        if questID then
+            local title = C_QuestLog.GetTitleForQuestID(questID)
+            if title and NormalizeText(title):find(needle, 1, true) then
+                if bossKey then
+                    cache[bossKey] = questID
+                end
+                return questID
+            end
+        end
+    end
+
+    return bossKey and cache[bossKey] or nil
+end
+
+local function FormatRemaining(seconds)
+    seconds = math.max(0, math.floor(seconds or 0))
+    local days = math.floor(seconds / 86400)
+    local hours = math.floor((seconds % 86400) / 3600)
+
+    if days > 0 then
+        return string.format(L["WB_Timer_DaysHours"] or "%dd %dh", days, hours)
+    end
+
+    local minutes = math.floor((seconds % 3600) / 60)
+    return string.format(L["WB_Timer_HoursMins"] or "%dh %dm", hours, minutes)
+end
+
+local function GetActiveWorldBossState(now)
+    now = now or GetServerTime()
+    local currentReset = MR.GetLastResetTimestamp and MR:GetLastResetTimestamp() or now
+    local weeksSinceStart = math.max(0, math.floor((currentReset - MIDNIGHT_SEASON_START_RESET) / WEEK_SECONDS))
+    local activeIndex = (weeksSinceStart % #WORLD_BOSS_ROTATION) + 1
+
+    return WORLD_BOSS_ROTATION[activeIndex], activeIndex, currentReset, currentReset + WEEK_SECONDS
+end
+
+local function IsActiveWorldBossRow(rowKey)
+    local activeBoss = GetActiveWorldBossState()
+    return activeBoss and activeBoss.key == rowKey or false
+end
+
+function MR:GetActiveWorldBossInfo()
+    local boss, index, currentReset, nextReset = GetActiveWorldBossState()
+    return boss, index, currentReset, nextReset
+end
+
+function MR:SyncCurrentWorldBossKillByName(name)
+    if type(name) ~= "string" or name == "" then
+        return false
+    end
+
+    local activeBoss = GetActiveWorldBossState()
+    if not activeBoss then
+        return false
+    end
+
+    local normalizedName = NormalizeText(name)
+    local normalizedLabel = NormalizeText(activeBoss.label)
+    if normalizedName == NormalizeText(activeBoss.match)
+        or normalizedName == normalizedLabel
+        or normalizedName:find(NormalizeText(activeBoss.match), 1, true)
+        or normalizedName:find(normalizedLabel, 1, true) then
+        SyncWorldBossKillRecord(activeBoss.key)
+        return true
+    end
+
     return false
 end
 
@@ -46,45 +201,49 @@ MR:RegisterModule({
     labelColor  = "#ff4444",
     resetType   = "weekly",
     defaultOpen = true,
-    isVisible   = function()
-        return IsInMap(MAPID_ISLE_OF_DORN)
-            or IsInMap(MAPID_RINGING_DEEPS)
-            or IsInMap(MAPID_HALLOWFALL)
-            or IsInMap(MAPID_AZJ_KAHET)
+
+    onScan = function(mod)
+        local db = MR.db.char.progress
+        if not db[mod.key] then db[mod.key] = {} end
+
+        local now = GetServerTime()
+        local _, activeIndex, currentReset, nextReset = GetActiveWorldBossState(now)
+
+        for index, boss in ipairs(WORLD_BOSS_ROTATION) do
+            local row = mod.rows[index]
+            local isActive = index == activeIndex
+            local questID = boss.questId or FindWorldBossQuestID(boss.zone, boss.match, boss.key)
+            if questID and C_QuestLog.IsQuestFlaggedCompleted(questID) then
+                SyncWorldBossKillRecord(boss.key)
+            end
+
+            local isDone = GetWorldBossKillStatus(boss.key) ~= nil
+
+            db[mod.key][boss.key] = isDone and 1 or 0
+
+            if isActive then
+                local remaining = nextReset - now
+                if isDone then
+                    row.countText = string.format(L["WB_Timer_Done"] or "Done - %s", FormatRemaining(remaining))
+                    row.countColor = { 0.30, 0.90, 0.55 }
+                else
+                    row.countText = string.format(L["WB_Timer_Active"] or "Active - %s", FormatRemaining(remaining))
+                    row.countColor = { 1.00, 0.82, 0.30 }
+                end
+            else
+                local weekOffset = (index - activeIndex + #WORLD_BOSS_ROTATION) % #WORLD_BOSS_ROTATION
+                local startAt = currentReset + (weekOffset * WEEK_SECONDS)
+                row.countText = string.format(L["WB_Timer_Next"] or "Next - %s", FormatRemaining(startAt - now))
+                row.countColor = { 0.75, 0.78, 0.86 }
+            end
+        end
     end,
+
     rows = {
-        {
-            key       = "skarmorak",
-            label     = L["WB_Skarmorak_Label"],
-            max       = 1,
-            note      = L["WB_Skarmorak_Note"],
-            questIds  = { 78319 },
-            isVisible = function() return IsInMap(MAPID_ISLE_OF_DORN) end,
-        },
-        {
-            key       = "aggregation",
-            label     = L["WB_Aggregation_Label"],
-            max       = 1,
-            note      = L["WB_Aggregation_Note"],
-            questIds  = { 83173 },
-            isVisible = function() return IsInMap(MAPID_RINGING_DEEPS) end,
-        },
-        {
-            key       = "odalrik",
-            label     = L["WB_Odalrik_Label"],
-            max       = 1,
-            note      = L["WB_Odalrik_Note"],
-            questIds  = { 80385 },
-            isVisible = function() return IsInMap(MAPID_HALLOWFALL) end,
-        },
-        {
-            key       = "echo_forgotten",
-            label     = L["WB_Echo_Label"],
-            max       = 1,
-            note      = L["WB_Echo_Note"],
-            questIds  = { 84446 },
-            isVisible = function() return IsInMap(MAPID_AZJ_KAHET) end,
-        },
+        { key = "luashal",    label = L["WB_Luashal_Label"],    note = L["WB_Luashal_Note"],    max = 1, autoTracked = true, isVisible = function() return IsActiveWorldBossRow("luashal") end },
+        { key = "cragpine",   label = L["WB_Cragpine_Label"],   note = L["WB_Cragpine_Note"],   max = 1, autoTracked = true, isVisible = function() return IsActiveWorldBossRow("cragpine") end },
+        { key = "thormbelan", label = L["WB_Thormbelan_Label"], note = L["WB_Thormbelan_Note"], max = 1, autoTracked = true, isVisible = function() return IsActiveWorldBossRow("thormbelan") end },
+        { key = "predaxas",   label = L["WB_Predaxas_Label"],   note = L["WB_Predaxas_Note"],   max = 1, autoTracked = true, isVisible = function() return IsActiveWorldBossRow("predaxas") end },
     },
 })
 

@@ -27,6 +27,10 @@ local UATV_BRANCHES = {
     { quest = 93766, name = L["Unity_WorldQuests"]   },
 }
 
+local UATV_BRANCH_QUEST_IDS = {
+    93890, 93767, 94457, 93909, 93911, 93769, 93891, 93910, 93912, 93889, 93892, 93913, 93766,
+}
+
 local MIDNIGHT_MAP_IDS = {
     [2393] = true,
     [2395] = true,
@@ -107,6 +111,15 @@ local function CollectSpecialAssignments()
     end
 
     return completed, active
+end
+
+local function FindActiveQuestVariant(variants)
+    for _, variant in ipairs(variants) do
+        if C_QuestLog.IsOnQuest(variant.quest) then
+            return variant
+        end
+    end
+    return nil
 end
 
 function MR:DebugSpecialAssignments()
@@ -198,10 +211,36 @@ MR:RegisterModule({
             end
         end
 
-        db[mod.key]["uatv_branch_name"] = nil
-        for _, b in ipairs(UATV_BRANCHES) do
-            if C_QuestLog.IsOnQuest(b.quest) then
-                db[mod.key]["uatv_branch_name"] = b.name
+        local activeUATVBranch = FindActiveQuestVariant(UATV_BRANCHES)
+        db[mod.key]["uatv_branch_name"] = activeUATVBranch and activeUATVBranch.name or nil
+        db[mod.key]["uatv_branch_quest"] = activeUATVBranch and activeUATVBranch.quest or nil
+        db[mod.key]["uatv_completed_branch_name"] = nil
+
+        if C_QuestLog.IsQuestFlaggedCompleted(93744) then
+            db[mod.key]["unity_against_void"] = 1
+        else
+            for _, branch in ipairs(UATV_BRANCHES) do
+                if C_QuestLog.IsQuestFlaggedCompleted(branch.quest) then
+                    db[mod.key]["unity_against_void"] = 1
+                    db[mod.key]["uatv_completed_branch_name"] = branch.name
+                    break
+                end
+            end
+        end
+
+        local soireeVariants = {
+            { quest = 91966, name = "Saltheril's Soiree" },
+            { quest = 89289, name = L["Weekly_Soiree_Label"] },
+        }
+        local activeSoireeVariant = FindActiveQuestVariant(soireeVariants)
+        db[mod.key]["soiree_active_quest"] = activeSoireeVariant and activeSoireeVariant.quest or nil
+        db[mod.key]["soiree_active_name"] = activeSoireeVariant and activeSoireeVariant.name or nil
+        db[mod.key]["soiree_completed_name"] = nil
+
+        for _, variant in ipairs(soireeVariants) do
+            if C_QuestLog.IsQuestFlaggedCompleted(variant.quest) then
+                db[mod.key]["saltherils_soiree"] = 1
+                db[mod.key]["soiree_completed_name"] = variant.name
                 break
             end
         end
@@ -226,31 +265,17 @@ MR:RegisterModule({
             label    = L["Weekly_Soiree_Label"],
             max      = 1,
             note     = L["Weekly_Soiree_Note"],
-            questIds = { 89289, 93889, 91966 }, 
+            turnInTracked = true,
+            questIds = { 89289, 91966 }, 
             tooltipFunc = function(tip)
                 local variants = {
-                    { quest = 93889, name = "Midnight: Saltheril's Soiree" },
                     { quest = 91966, name = "Saltheril's Soiree" },
+                    { quest = 89289, name = L["Weekly_Soiree_Label"] },
                 }
 
-                local completedName = nil
-                local activeName = nil
-
-                for _, v in ipairs(variants) do
-                    if C_QuestLog.IsQuestFlaggedCompleted(v.quest) then
-                        completedName = v.name
-                        break
-                    end
-                end
-
-                if not completedName then
-                    for _, v in ipairs(variants) do
-                        if C_QuestLog.IsOnQuest(v.quest) then
-                            activeName = v.name
-                            break
-                        end
-                    end
-                end
+                local s1db = MR.db.char.progress["s1_weekly"] or {}
+                local completedName = (MR:GetProgress("s1_weekly", "saltherils_soiree") >= 1 and s1db["soiree_completed_name"]) or nil
+                local activeName = s1db["soiree_active_name"]
 
                 tip:AddLine(" ")
                 if completedName then
@@ -309,50 +334,29 @@ MR:RegisterModule({
             label    = L["Weekly_Unity_Label"],
             max      = 1,
             note     = L["Weekly_Unity_Note"],
-            questIds = { 93890, 93767, 94457, 93909, 93911, 93769, 93891, 93910, 93912, 93889, 93892, 93913, 93766 },
+            turnInTracked = true,
+            questIds = { 93744 },
+            branchQuestIds = UATV_BRANCH_QUEST_IDS,
 
             isVisible = function()
-                local ids = { 93890, 93767, 94457, 93909, 93911, 93769, 93891, 93910, 93912, 93889, 93892, 93913, 93766 }
-                for _, qid in ipairs(ids) do
+                for _, qid in ipairs(UATV_BRANCH_QUEST_IDS) do
                     if C_QuestLog.IsOnQuest(qid) or C_QuestLog.IsQuestFlaggedCompleted(qid) then
                         return true
                     end
                 end
-                return C_QuestLog.IsQuestFlaggedCompleted(93744)
+                return C_QuestLog.IsOnQuest(93744)
+                    or C_QuestLog.IsQuestFlaggedCompleted(93744)
+                    or MR:GetProgress("s1_weekly", "unity_against_void") >= 1
             end,
 
             tooltipFunc = function(tip)
-                local branches = {
-                    { quest = 93890, name = L["Unity_Abundance"]     },
-                    { quest = 93767, name = L["Unity_Arcantina"]     },
-                    { quest = 94457, name = L["Unity_Battlegrounds"] },
-                    { quest = 93909, name = L["Unity_Delves"]        },
-                    { quest = 93911, name = L["Unity_Dungeons"]      },
-                    { quest = 93769, name = L["Unity_Housing"]       },
-                    { quest = 93891, name = L["Unity_Legends"]       },
-                    { quest = 93910, name = L["Unity_Prey"]          },
-                    { quest = 93912, name = L["Unity_Raids"]         },
-                    { quest = 93889, name = L["Unity_Soiree"]        },
-                    { quest = 93892, name = L["Unity_Stormarion"]    },
-                    { quest = 93913, name = L["Unity_WorldBoss"]     },
-                    { quest = 93766, name = L["Unity_WorldQuests"]   },
-                }
-                local completedBranch, activeBranch = nil, nil
-                for _, b in ipairs(branches) do
-                    if C_QuestLog.IsQuestFlaggedCompleted(b.quest) then
-                        completedBranch = b.name; break
-                    end
-                end
-                if not completedBranch then
-                    for _, b in ipairs(branches) do
-                        if C_QuestLog.IsOnQuest(b.quest) then
-                            activeBranch = b.name; break
-                        end
-                    end
-                end
+                local s1db = MR.db.char.progress["s1_weekly"] or {}
+                local activeBranchInfo = FindActiveQuestVariant(UATV_BRANCHES)
+                local completedBranch = (MR:GetProgress("s1_weekly", "unity_against_void") >= 1 and s1db["uatv_completed_branch_name"]) or nil
+                local activeBranch = activeBranchInfo and activeBranchInfo.name or nil
 
                 tip:AddLine(" ")
-                if completedBranch or C_QuestLog.IsQuestFlaggedCompleted(93744) then
+                if completedBranch or MR:GetProgress("s1_weekly", "unity_against_void") >= 1 then
                     tip:AddLine(L["Tooltip_Done_Variant"], 1, 1, 1)
                     if completedBranch then
                         tip:AddLine("  " .. completedBranch, 0.4, 0.85, 0.4)

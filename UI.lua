@@ -1906,7 +1906,12 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
     colW = colW or ((MR.db.profile.width or 260) - 13)
     parent = parent or self.content
     widgetBucket = widgetBucket or self.widgets
-    local isAutoTracked = (row.questIds ~= nil) or (row.liveKey ~= nil) or (row.spellId ~= nil) or (row.currencyId ~= nil) or (row.itemId ~= nil)
+    local isAutoTracked = row.autoTracked
+        or (row.questIds ~= nil)
+        or (row.liveKey ~= nil)
+        or (row.spellId ~= nil)
+        or (row.currencyId ~= nil)
+        or (row.itemId ~= nil)
     local hasWaypoint   = row.zone and row.x and row.y
     local isComplete    = not row.noMax and done >= row.max
     local GHOST_H       = 8
@@ -1973,8 +1978,8 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
             if row.tooltipFunc then
                 row.tooltipFunc(GameTooltip)
             end
-            if row.liveKey or (row.currencyId and row.noBlizzardTooltip) then
-                GameTooltip:AddLine(L["Tooltip_AutoBlizzard"], 0.4, 0.8, 1)
+              if row.liveKey or row.autoTracked or (row.currencyId and row.noBlizzardTooltip) then
+                  GameTooltip:AddLine(L["Tooltip_AutoBlizzard"], 0.4, 0.8, 1)
             elseif row.questIds then
                 GameTooltip:AddLine(L["Tooltip_AutoQuest"], 0.4, 1, 0.6)
             elseif row.spellId or row.itemId then

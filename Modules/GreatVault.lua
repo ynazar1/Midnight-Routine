@@ -5,7 +5,7 @@ local DUNGEON_TIERS = {
     {  7, L["Hero"],     "#0070dd" },
     {  4, L["Champion"], "#f1c232" },
     {  2, L["Veteran"],  "#1eff00" },
-    {  0, L["Follower"], "#b7b7b7" },
+    {  0, L["Mythic"],   "#b7b7b7" },
 }
 
 local RAID_DIFF = {
@@ -17,6 +17,10 @@ local RAID_DIFF = {
 
 local DIFF_RANK = { [17]=1, [14]=2, [15]=3, [16]=4 }
 
+local function UpdateMax(current, candidate)
+    return math.max(current or 0, candidate or 0)
+end
+
 local function GetDungeonTier(level)
     level = level or 0
     for _, t in ipairs(DUNGEON_TIERS) do
@@ -27,7 +31,7 @@ end
 
 local function GetRaidDiffName(diffId)
     local d = RAID_DIFF[diffId]
-    return d and d[1] or L["Normal"], d and d[2] or "#1eff00"
+    return d and d[1] or L["LFR"], d and d[2] or "#b7b7b7"
 end
 
 local function SlotLine(tt, slotNum, count, threshold)
@@ -46,37 +50,43 @@ MR:RegisterModule({
     defaultOpen = true,
 
     onScan = function(mod)
-        if not C_WeeklyRewards or not C_WeeklyRewards.GetActivities then return end
-        local activities = C_WeeklyRewards.GetActivities()
-        if not activities then return end
         local db = MR.db.char.progress
         if not db[mod.key] then db[mod.key] = {} end
         local vd = db[mod.key]
+        local buckets = MR.GetWeeklyRewardActivityBuckets and MR:GetWeeklyRewardActivityBuckets() or nil
+        if not buckets then return end
 
         vd["vault_d_progress"]  = 0
         vd["vault_d_max_level"] = 0
         vd["vault_r_progress"]  = 0
-        vd["vault_r_diff_id"]   = 14
+        vd["vault_r_diff_id"]   = nil
         vd["vault_w_progress"]  = 0
 
-        for _, act in ipairs(activities) do
-            if act.type == 1 then
-                vd["vault_d_progress"] = act.progress or 0
-                if (act.level or 0) > (vd["vault_d_max_level"] or 0) then
-                    vd["vault_d_max_level"] = act.level or 0
-                end
-            elseif act.type == 3 then
-                local prog = act.progress or 0
-                if prog > vd["vault_r_progress"] then
-                    vd["vault_r_progress"] = prog
-                end
-                local newRank = DIFF_RANK[act.difficultyId]
-                if newRank and newRank > (DIFF_RANK[vd["vault_r_diff_id"]] or 0) then
-                    vd["vault_r_diff_id"] = act.difficultyId
-                end
-            elseif act.type == 4 then
-                vd["vault_w_progress"] = act.progress or 0
+        for _, act in ipairs(buckets.dungeon) do
+            vd["vault_d_progress"] = UpdateMax(vd["vault_d_progress"], act.progress)
+            if (act.level or 0) > (vd["vault_d_max_level"] or 0) then
+                vd["vault_d_max_level"] = act.level or 0
             end
+        end
+
+        for _, act in ipairs(buckets.raid) do
+            local prog = act.progress or 0
+            vd["vault_r_progress"] = UpdateMax(vd["vault_r_progress"], prog)
+            local difficultyId = act.difficultyId
+            if (not difficultyId) and C_WeeklyRewards and C_WeeklyRewards.GetDifficultyIDForActivityTier and act.activityTierID then
+                difficultyId = C_WeeklyRewards.GetDifficultyIDForActivityTier(act.activityTierID)
+            end
+            if (not difficultyId or not DIFF_RANK[difficultyId]) and DIFF_RANK[act.level] then
+                difficultyId = act.level
+            end
+            local newRank = DIFF_RANK[difficultyId]
+            if newRank and newRank > (DIFF_RANK[vd["vault_r_diff_id"]] or 0) then
+                vd["vault_r_diff_id"] = difficultyId
+            end
+        end
+
+        for _, act in ipairs(buckets.world) do
+            vd["vault_w_progress"] = UpdateMax(vd["vault_w_progress"], act.progress)
         end
 
         if vd["vault_r_progress"] > 0 then

@@ -116,6 +116,7 @@ MR:RegisterModule({
             label    = L["PvP_Training_Label"],
             max      = 1,
             note     = L["PvP_Training_Note"],
+            turnInTracked = true,
             questIds = { QUEST_EARLY_TRAINING },
         },
     },

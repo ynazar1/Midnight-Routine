@@ -1,5 +1,4 @@
 local SCAN_THROTTLE       = 2
-local DELVE_ACTIVITY_TYPE = 4
 local DELVE_T8_MIN_LEVEL  = 8
 local DELVERS_BOUNTY_ITEM = 233071
 
@@ -114,19 +113,25 @@ MR:RegisterModule({
         if (now - lastScan) < SCAN_THROTTLE then return end
         lastScan = now
 
-        if C_WeeklyRewards and C_WeeklyRewards.GetActivities then
-            local activities = C_WeeklyRewards.GetActivities()
-            if activities then
-                for _, act in ipairs(activities) do
-                    if act.type == DELVE_ACTIVITY_TYPE then
-                        local runs = act.progress or 0
-                        local t8   = ((act.level or 0) >= DELVE_T8_MIN_LEVEL) and 1 or 0
-                        if mdb["delve_runs"] ~= runs then mdb["delve_runs"] = runs end
-                        if mdb["delve_t8"]   ~= t8   then mdb["delve_t8"]   = t8   end
-                        break
-                    end
+        local buckets = MR.GetWeeklyRewardActivityBuckets and MR:GetWeeklyRewardActivityBuckets() or nil
+        if buckets and buckets.world and buckets.world[1] then
+            local bestRuns = 0
+            local bestLevel = 0
+            for _, act in ipairs(buckets.world) do
+                if (act.progress or 0) > bestRuns then
+                    bestRuns = act.progress or 0
+                end
+                if (act.level or 0) > bestLevel then
+                    bestLevel = act.level or 0
                 end
             end
+
+            local t8 = (bestLevel >= DELVE_T8_MIN_LEVEL) and 1 or 0
+            if mdb["delve_runs"] ~= bestRuns then mdb["delve_runs"] = bestRuns end
+            if mdb["delve_t8"]   ~= t8       then mdb["delve_t8"]   = t8 end
+        else
+            if mdb["delve_runs"] ~= 0 then mdb["delve_runs"] = 0 end
+            if mdb["delve_t8"]   ~= 0 then mdb["delve_t8"] = 0 end
         end
 
         local bountyCount = C_Item.GetItemCount and C_Item.GetItemCount(DELVERS_BOUNTY_ITEM) or 0

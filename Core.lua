@@ -170,6 +170,38 @@ function MR:RegisterModule(def)
     self._orderedModulesCache = nil
 end
 
+function MR:GetWeeklyRewardActivityBuckets()
+    local buckets = {
+        dungeon = {},
+        raid = {},
+        world = {},
+    }
+
+    if not (C_WeeklyRewards and C_WeeklyRewards.GetActivities) then
+        return buckets
+    end
+
+    local activities = C_WeeklyRewards.GetActivities()
+    if not activities then
+        return buckets
+    end
+
+    for _, activity in ipairs(activities) do
+        if activity.type == 1 then
+            table.insert(buckets.dungeon, activity)
+        elseif activity.type == 3 then
+            table.insert(buckets.raid, activity)
+        elseif activity.type == 6 then
+            table.insert(buckets.world, activity)
+        elseif activity.type == 4 and #buckets.world == 0 then
+            -- Fallback for older clients/builds where delves/world vault data used type 4.
+            table.insert(buckets.world, activity)
+        end
+    end
+
+    return buckets
+end
+
 function MR:GetProgress(moduleKey, rowKey)
     local m = self.db.char.progress[moduleKey]
     return m and m[rowKey] or 0
@@ -729,13 +761,25 @@ function MR:Scan()
 
     for _, mod in ipairs(self.modules) do
         for _, row in ipairs(mod.rows) do
-            if row.questIds then
+            if row.questIds and not row.turnInTracked then
                 local done = 0
                 for _, qid in ipairs(row.questIds) do
                     if C_QuestLog.IsQuestFlaggedCompleted(qid) then done = done + 1 end
                 end
                 if WriteProgress(progress, mod.key, row.key, math.min(done, row.max or done), self.db.char.manualOverrides) then
                     dirty = true
+                end
+            elseif row.questIds and row.turnInTracked and row.allowQuestFlagBackfill then
+                local currentValue = progress[mod.key] and progress[mod.key][row.key] or 0
+                if currentValue <= 0 then
+                    for _, qid in ipairs(row.questIds) do
+                        if C_QuestLog.IsQuestFlaggedCompleted(qid) then
+                            if WriteProgress(progress, mod.key, row.key, 1, self.db.char.manualOverrides) then
+                                dirty = true
+                            end
+                            break
+                        end
+                    end
                 end
             end
             if row.currencyId then
@@ -827,17 +871,12 @@ end
 local TURN_IN_COMPLETIONS = {
     [89268] = { mod = "s1_weekly",           row = "lost_legends"        },
     [89289] = { mod = "s1_weekly",           row = "saltherils_soiree"   },
-    [93889] = { mod = "s1_weekly",           row = "saltherils_soiree"   },
     [91966] = { mod = "s1_weekly",           row = "saltherils_soiree"   },
     [90573] = { mod = "s1_weekly",           row = "fortify_runestones"  },
     [90574] = { mod = "s1_weekly",           row = "fortify_runestones"  },
     [90575] = { mod = "s1_weekly",           row = "fortify_runestones"  },
     [90576] = { mod = "s1_weekly",           row = "fortify_runestones"  },
     [93744] = { mod = "s1_weekly",           row = "unity_against_void"  },
-    [93909] = { mod = "s1_weekly",           row = "unity_against_void"  },
-    [93911] = { mod = "s1_weekly",           row = "unity_against_void"  },
-    [93912] = { mod = "s1_weekly",           row = "unity_against_void"  },
-    [93910] = { mod = "s1_weekly",           row = "unity_against_void"  },
     [90962] = { mod = "midnight_activities", row = "stormarion_assault"  },
     [94835] = { mod = "pvp_weeklies",        row = "early_training"      },
 }
@@ -850,7 +889,35 @@ local WEEKLY_RESET_SCHEDULE = {
     [5] = { weekday = 4, hour = 3 }, 
 }
 
+local DAY_SECONDS = 24 * 60 * 60
+local WEEK_SECONDS = 7 * DAY_SECONDS
+
+local function GetResetTimestampFromCountdown(secondsUntilReset, cycleSeconds)
+    if type(secondsUntilReset) ~= "number" then
+        return nil
+    end
+
+    secondsUntilReset = math.floor(secondsUntilReset)
+    if secondsUntilReset < 0 then
+        return nil
+    end
+
+    local maxExpected = cycleSeconds + (2 * 60 * 60)
+    if secondsUntilReset > maxExpected then
+        return nil
+    end
+
+    return GetServerTime() + secondsUntilReset - cycleSeconds
+end
+
 function MR:GetLastDailyTimestamp()
+    if C_DateAndTime and C_DateAndTime.GetSecondsUntilDailyReset then
+        local ts = GetResetTimestampFromCountdown(C_DateAndTime.GetSecondsUntilDailyReset(), DAY_SECONDS)
+        if ts then
+            return ts
+        end
+    end
+
     local cal = C_DateAndTime.GetCurrentCalendarTime()
     if not cal then return nil end
     local now = GetServerTime()
@@ -886,6 +953,13 @@ function MR:DoDailyReset()
 end
 
 function MR:GetLastResetTimestamp()
+    if C_DateAndTime and C_DateAndTime.GetSecondsUntilWeeklyReset then
+        local ts = GetResetTimestampFromCountdown(C_DateAndTime.GetSecondsUntilWeeklyReset(), WEEK_SECONDS)
+        if ts then
+            return ts
+        end
+    end
+
     local region    = GetCurrentRegion() or 1
     local resetInfo = WEEKLY_RESET_SCHEDULE[region]
     if not resetInfo then return nil end
@@ -1134,6 +1208,7 @@ function MR:OnEnable()
 
     self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED", "OnSpellCast")
     self:RegisterEvent("ENCOUNTER_END",            "OnEncounterEnd")
+    self:RegisterEvent("BOSS_KILL",                "OnBossKill")
     self:RegisterEvent("PLAYER_ENTERING_WORLD",    "OnEnteringWorld")
 
     self:ScheduleRepeatingTimer("CheckWeeklyReset", 60)
@@ -1147,6 +1222,17 @@ function MR:OnEnable()
             local entry = TURN_IN_COMPLETIONS[questID]
             if not entry or not addon.db then return end
             local ch = addon.db.char
+            local modProgress = ch.progress and ch.progress[entry.mod]
+            if entry.mod == "s1_weekly" and entry.row == "saltherils_soiree" then
+                if not modProgress or modProgress["soiree_active_quest"] ~= questID then
+                    return
+                end
+                modProgress["soiree_completed_name"] = modProgress["soiree_active_name"]
+            elseif entry.mod == "s1_weekly" and entry.row == "unity_against_void" then
+                if modProgress then
+                    modProgress["uatv_completed_branch_name"] = modProgress["uatv_branch_name"]
+                end
+            end
             if not ch.progress[entry.mod] then ch.progress[entry.mod] = {} end
             ch.progress[entry.mod][entry.row] = 1
             addon:RefreshUI()
@@ -1247,8 +1333,18 @@ function MR:OnZoneChanged()
     end
 end
 
-function MR:OnEncounterEnd(_, _, _, _, _, success)
+function MR:OnEncounterEnd(_, _, encounterName, _, _, success)
     if success == 1 then
+        if encounterName and self.SyncCurrentWorldBossKillByName then
+            self:SyncCurrentWorldBossKillByName(encounterName)
+        end
+        self:ScheduleTimer(function() self:Scan() end, 1.5)
+    end
+end
+
+function MR:OnBossKill(_, bossName)
+    if bossName and self.SyncCurrentWorldBossKillByName then
+        self:SyncCurrentWorldBossKillByName(bossName)
         self:ScheduleTimer(function() self:Scan() end, 1.5)
     end
 end
@@ -1266,8 +1362,8 @@ SlashCmdList["MIDROUTE"] = function(msg)
         end
     end
 
-    if     msg == "reset"   then MR:DoWeeklyReset()
-    elseif msg == "lock"    then
+      if     msg == "reset"   then MR:DoWeeklyReset()
+      elseif msg == "lock"    then
         MR.db.profile.locked = true
         if MR.frame then MR.frame:SetMovable(false) end
         print(L["Frame_Locked"])
