@@ -75,13 +75,13 @@ function ns.SetDotColor(tex, done, max)
     end
 end
 
-ns.LOCALE_SETTINGS = {
+ns.LOCALE_SETTINGS = ns.LOCALE_SETTINGS or {
     zhCN = { fontSizeMin = 13, fontSizeDefault = 13 },
     zhTW = { fontSizeMin = 13, fontSizeDefault = 13 },
     koKR = { fontSizeMin = 13, fontSizeDefault = 13 },
 }
 
-local localeSettings = ns.LOCALE_SETTINGS[GetLocale()] or {}
+local localeSettings = (ns.LOCALE_SETTINGS or {})[GetLocale()] or {}
 local fontSizeMin = localeSettings.fontSizeMin or 7
 local fontSizeDefault = localeSettings.fontSizeDefault or 11
 

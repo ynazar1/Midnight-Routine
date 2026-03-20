@@ -37,7 +37,17 @@ local GetWindowLayoutValue
 local SetWindowLayoutValue
 local countColor
 
-local GetFontSize = ns.GetFontSize
+local function GetFontSize()
+    if type(ns.GetFontSize) == "function" then
+        return ns.GetFontSize()
+    end
+
+    if MR and MR.db and MR.db.profile and MR.db.profile.fontSize then
+        return MR.db.profile.fontSize
+    end
+
+    return 11
+end
 
 local function RefreshFonts()
     if ns.EnsureFonts then

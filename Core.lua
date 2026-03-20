@@ -75,6 +75,7 @@ local DEFAULTS = {
     },
     char = {
         progress = {},
+        professions = {},
         lastWeek = 0,
         lastSyncAt = 0,
         manualOverrides = {},
@@ -195,7 +196,6 @@ function MR:GetWeeklyRewardActivityBuckets()
         elseif activity.type == 6 then
             table.insert(buckets.world, activity)
         elseif activity.type == 4 and #buckets.world == 0 then
-            -- Fallback for older clients/builds where delves/world vault data used type 4.
             table.insert(buckets.world, activity)
         end
     end
@@ -260,14 +260,12 @@ function MR:GetWarbandWeeklyData()
                     local moduleEnabled = not (moduleSettings and moduleSettings.enabled == false)
                     local moduleVisible = moduleEnabled and (not mod.isVisible or mod:isVisible())
                     local modProgress = charData.progress[mod.key] or {}
-                    local hasLiveProfession = snapshot.isCurrent and mod.profSkillLine and self.playerProfessions and self.playerProfessions[mod.profSkillLine]
-                    local hasProfessionData = (not mod.profSkillLine)
-                        or hasLiveProfession
-                        or HasAnyTableValue(modProgress)
-                        or (type(charData.manualOverrides) == "table" and HasAnyTableValue(charData.manualOverrides[mod.key]))
-                        or (moduleSettings ~= nil)
+                    local savedProfessions = type(charData.professions) == "table" and charData.professions or nil
+                    local knowsProfession = (not mod.profSkillLine)
+                        or (snapshot.isCurrent and self.playerProfessions and self.playerProfessions[mod.profSkillLine])
+                        or (savedProfessions and savedProfessions[mod.profSkillLine])
 
-                    if moduleVisible and hasProfessionData then
+                    if moduleVisible and knowsProfession then
                         local moduleEntry = {
                             key = mod.key,
                             label = CleanAccountLabel(mod.label),
@@ -692,6 +690,21 @@ local PARENT_TO_MIDNIGHT = {
 
 MR.playerProfessions = MR.playerProfessions or {}
 
+local function CopyProfessionMap(source)
+    local copy = {}
+    if type(source) ~= "table" then
+        return copy
+    end
+
+    for skillLineID, learned in pairs(source) do
+        if learned then
+            copy[skillLineID] = true
+        end
+    end
+
+    return copy
+end
+
 function MR:RefreshPlayerProfessions()
     wipe(self.playerProfessions)
     if C_TradeSkillUI and C_TradeSkillUI.GetAllProfessionTradeSkillLines then
@@ -718,6 +731,10 @@ function MR:RefreshPlayerProfessions()
                 if mid then self.playerProfessions[mid] = true end
             end
         end
+    end
+
+    if self.db and self.db.char then
+        self.db.char.professions = CopyProfessionMap(self.playerProfessions)
     end
 end
 

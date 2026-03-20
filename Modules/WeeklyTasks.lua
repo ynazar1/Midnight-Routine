@@ -158,9 +158,8 @@ MR:RegisterModule({
         db[mod.key]["sa_active_zones"] = nil
 
         local completedAssignments, activeAssignments = CollectSpecialAssignments()
-        if #completedAssignments > 0 then
-            db[mod.key]["special_assignment"] = 1
-        end
+        local totalAssignments = math.max(#completedAssignments + #activeAssignments, 1)
+        db[mod.key]["special_assignment"] = #completedAssignments
 
         local detectedAssignments = (#activeAssignments > 0) and activeAssignments or completedAssignments
         if #detectedAssignments > 0 then
@@ -177,6 +176,7 @@ MR:RegisterModule({
 
         for _, row in ipairs(mod.rows) do
             if row.key == "special_assignment" then
+                row.max = totalAssignments
                 if #activeAssignments > 0 then
                     row.countText = string.format(
                         L["Weekly_SA_Count_Active"] or "%d active",
@@ -197,10 +197,20 @@ MR:RegisterModule({
                         L["Weekly_SA_Note_CompletedMulti"] or "Completed %d special assignments this week. Hover for the full list and zones.",
                         #completedAssignments
                     )
-                elseif #completedAssignments == 1 then
+                elseif #completedAssignments == 1 and totalAssignments == 1 then
                     row.countText = L["Done"] or "Done"
                     row.countColor = { 0.4, 0.85, 0.4 }
                     row.note = L["Weekly_SA_Note"]
+                elseif #completedAssignments > 0 then
+                    row.countText = string.format(
+                        L["Weekly_SA_Count_Completed"] or "%d done",
+                        #completedAssignments
+                    )
+                    row.countColor = { 0.4, 0.85, 0.4 }
+                    row.note = string.format(
+                        L["Weekly_SA_Note_CompletedMulti"] or "Completed %d special assignments this week. Hover for the full list and zones.",
+                        #completedAssignments
+                    )
                 elseif #detectedAssignments == 1 then
                     row.countText = L["Weekly_SA_Count_ActiveSingle"] or "Active"
                     row.countColor = { 1, 0.9, 0.3 }
