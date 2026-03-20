@@ -227,7 +227,7 @@ MR:RegisterModule({
             if isActive then
                 local remaining = nextReset - now
                 if isDone then
-                    row.countText = string.format(L["WB_Timer_Done"] or "Done - %s", FormatRemaining(remaining))
+                    row.countText = string.format("%s - %s", L["Done"] or "Done", FormatRemaining(remaining))
                     row.countColor = { 0.30, 0.90, 0.55 }
                 else
                     row.countText = string.format(L["WB_Timer_Active"] or "Active - %s", FormatRemaining(remaining))

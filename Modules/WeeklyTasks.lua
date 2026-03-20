@@ -198,7 +198,7 @@ MR:RegisterModule({
                         #completedAssignments
                     )
                 elseif #completedAssignments == 1 then
-                    row.countText = L["Weekly_SA_Count_Complete"] or "Done"
+                    row.countText = L["Done"] or "Done"
                     row.countColor = { 0.4, 0.85, 0.4 }
                     row.note = L["Weekly_SA_Note"]
                 elseif #detectedAssignments == 1 then
@@ -239,7 +239,7 @@ MR:RegisterModule({
                 local unityProgress = db[mod.key]["unity_against_void"] or 0
 
                 if completedBranch or unityProgress >= 1 then
-                    row.countText = completedBranch or (L["Weekly_SA_Count_Complete"] or "Done")
+                    row.countText = completedBranch or (L["Done"] or "Done")
                     row.countColor = { 0.4, 0.85, 0.4 }
                 elseif activeBranch then
                     row.countText = activeBranch

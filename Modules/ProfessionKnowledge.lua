@@ -297,7 +297,7 @@ end
 local function ProgressText(entry)
     local current, required = Progress(entry)
     if required > 1 then return current .. "/" .. required end
-    return current > 0 and L["ProfKnowledge_StatusDone"] or L["ProfKnowledge_StatusPending"]
+    return current > 0 and (L["Done"] or "Done") or L["ProfKnowledge_StatusPending"]
 end
 
 local function SectionStats(section)
