@@ -45,6 +45,16 @@ local function SlotLine(tt, slotNum, count, threshold)
     end
 end
 
+local function IsDungeonVaultMaxed()
+    local vd = MR.db and MR.db.char and MR.db.char.progress and MR.db.char.progress["great_vault"] or {}
+    return (vd["vault_d_slots"] or 0) >= 3 and (vd["vault_d_max_level"] or 0) >= 10
+end
+
+local function IsRaidVaultMaxed()
+    local vd = MR.db and MR.db.char and MR.db.char.progress and MR.db.char.progress["great_vault"] or {}
+    return (vd["vault_r_slots"] or 0) >= 3 and (vd["vault_r_diff_id"] or 0) == 16
+end
+
 MR:RegisterModule({
     key         = "great_vault",
     label       = L["GreatVault_Title"],
@@ -128,6 +138,9 @@ MR:RegisterModule({
             liveKey          = "vault_r_slots",
             liveTierLabelKey = "vault_r_diff_label",
             liveTierColorKey = "vault_r_diff_color",
+            completeFunc     = function()
+                return IsRaidVaultMaxed()
+            end,
             tooltipFunc = function(tt)
                 local vd   = MR.db.char.progress["great_vault"] or {}
                 local prog = vd["vault_r_progress"] or 0
@@ -145,6 +158,9 @@ MR:RegisterModule({
             liveKey          = "vault_d_slots",
             liveTierLabelKey = "vault_d_tier_label",
             liveTierColorKey = "vault_d_tier_color",
+            completeFunc     = function()
+                return IsDungeonVaultMaxed()
+            end,
             tooltipFunc = function(tt)
                 local vd   = MR.db.char.progress["great_vault"] or {}
                 local prog = vd["vault_d_progress"] or 0

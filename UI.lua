@@ -1755,6 +1755,13 @@ function MR:RefreshUI()
     end
 end
 
+function MR:IsRowComplete(mod, row, done)
+    if row.completeFunc then
+        return row.completeFunc(done, row, mod) == true
+    end
+    return row.max and not row.noMax and done >= row.max
+end
+
 function MR:MeasureSection(mod)
     local isOpen = MR:IsModuleOpen(mod.key)
     local _, _, shownRows = self:GetModuleRowStats(mod)
@@ -1767,7 +1774,7 @@ function MR:MeasureSection(mod)
             local rowVisible = not row.isVisible or row.isVisible()
             if rowVisible and MR:IsRowEnabled(mod.key, row.key) then
                 local done = MR:GetProgress(mod.key, row.key)
-                local isComplete = not row.noMax and done >= row.max
+                local isComplete = self:IsRowComplete(mod, row, done)
                 if not (MR:IsModuleHideComplete(mod.key) and isComplete) then
                     h = h + ROW_HEIGHT
                 end
@@ -1786,7 +1793,7 @@ function MR:GetModuleRowStats(mod)
         if rowVisible and MR:IsRowEnabled(mod.key, row.key) then
             totalRows = totalRows + 1
 
-            local isComplete = row.max and not row.noMax and MR:GetProgress(mod.key, row.key) >= row.max
+            local isComplete = self:IsRowComplete(mod, row, MR:GetProgress(mod.key, row.key))
             if isComplete then
                 doneRows = doneRows + 1
             end
@@ -1937,7 +1944,7 @@ function MR:BuildSection(mod, yOff, xOff, colW, col, parent, widgetBucket, opts)
             local rowVisible = not row.isVisible or row.isVisible()
             if rowVisible and MR:IsRowEnabled(mod.key, row.key) then
                 local done       = MR:GetProgress(mod.key, row.key)
-                local isComplete = not row.noMax and done >= row.max
+                local isComplete = self:IsRowComplete(mod, row, done)
                 if not (hideComplete and isComplete) then
                     yOff = self:BuildRow(mod, row, done, yOff, false, xOff, colW, parent, widgetBucket)
                 end
@@ -1964,7 +1971,7 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
         or (row.currencyId ~= nil)
         or (row.itemId ~= nil)
     local hasWaypoint   = row.zone and row.x and row.y
-    local isComplete    = not row.noMax and done >= row.max
+    local isComplete    = self:IsRowComplete(mod, row, done)
     local GHOST_H       = 8
     local rowH          = collapsed and GHOST_H or ROW_HEIGHT
 
