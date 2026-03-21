@@ -28,7 +28,7 @@ local RebuildRenownFrame
 local SaveFactionOrder
 local PopulateRenownConfig
 
-local FACTIONS = {
+local BASE_FACTIONS = {
     {
         key       = "silvermoon",
         label     = L["Faction_SilvermoonCourt"],
@@ -63,13 +63,116 @@ local FACTIONS = {
     },
 }
 
+local function GetFactionRenownCap(factionId, fallback)
+    if C_MajorFactions and C_MajorFactions.GetRenownLevels and factionId then
+        local levels = C_MajorFactions.GetRenownLevels(factionId)
+        if levels and #levels > 0 then
+            return #levels
+        end
+    end
+    return fallback or 20
+end
+
+local function NormalizeJourneyKey(name, factionId, delvesFactionId)
+    if delvesFactionId and factionId == delvesFactionId then
+        return "delvers_journey"
+    end
+    local lower = name and name:lower() or ""
+    if lower:find("delver", 1, true) then
+        return "delvers_journey"
+    end
+    if lower:find("preyseeker", 1, true) then
+        return "preyseekers_journey"
+    end
+    return nil
+end
+
+local function GetJourneyStyle(key)
+    if key == "delvers_journey" then
+        return { 0.78, 0.58, 0.24 }, "c7953d"
+    end
+    if key == "preyseekers_journey" then
+        return { 0.76, 0.24, 0.28 }, "c23d47"
+    end
+    return { 0.58, 0.48, 0.72 }, "947aba"
+end
+
+local function AddDynamicFaction(factions, seenFactionIds, key, label, factionId, fallbackMax)
+    if not key or not factionId or seenFactionIds[factionId] then return end
+    local color, hex = GetJourneyStyle(key)
+    factions[#factions + 1] = {
+        key       = key,
+        label     = label,
+        factionId = factionId,
+        maxRenown = GetFactionRenownCap(factionId, fallbackMax),
+        color     = color,
+        hex       = hex,
+    }
+    seenFactionIds[factionId] = true
+end
+
+local function BuildDynamicFactions()
+    local factions = {}
+    local seenFactionIds = {}
+    for _, faction in ipairs(BASE_FACTIONS) do
+        factions[#factions + 1] = faction
+        seenFactionIds[faction.factionId] = true
+    end
+
+    local delvesFactionId = C_DelvesUI and C_DelvesUI.GetDelvesFactionForSeason and C_DelvesUI.GetDelvesFactionForSeason()
+    if delvesFactionId then
+        local data = C_MajorFactions and C_MajorFactions.GetMajorFactionData and C_MajorFactions.GetMajorFactionData(delvesFactionId)
+        AddDynamicFaction(factions, seenFactionIds, "delvers_journey", (data and data.name) or "Delver's Journey", delvesFactionId, 10)
+    end
+
+    if C_MajorFactions and C_MajorFactions.GetMajorFactionIDs then
+        local majorFactionIds = C_MajorFactions.GetMajorFactionIDs()
+        local extraJourney
+        for _, factionId in ipairs(majorFactionIds or {}) do
+            local isJourney = C_MajorFactions.ShouldDisplayMajorFactionAsJourney
+                and C_MajorFactions.ShouldDisplayMajorFactionAsJourney(factionId)
+            if isJourney then
+                local data = C_MajorFactions.GetMajorFactionData and C_MajorFactions.GetMajorFactionData(factionId)
+                local key = NormalizeJourneyKey(data and data.name, factionId, delvesFactionId)
+                if key == "preyseekers_journey" then
+                    extraJourney = {
+                        key = key,
+                        label = (data and data.name) or "Preyseeker's Journey",
+                        factionId = factionId,
+                    }
+                elseif not key and factionId ~= delvesFactionId then
+                    extraJourney = {
+                        key = "preyseekers_journey",
+                        label = (data and data.name) or "Preyseeker's Journey",
+                        factionId = factionId,
+                    }
+                end
+            end
+        end
+
+        if extraJourney then
+            AddDynamicFaction(
+                factions,
+                seenFactionIds,
+                extraJourney.key,
+                extraJourney.label,
+                extraJourney.factionId,
+                10
+            )
+        end
+    end
+
+    return factions
+end
+
 local function GetRenownData(faction)
     local data = C_MajorFactions.GetMajorFactionData(faction.factionId)
-    if not data then return 0, faction.maxRenown, 0, 2500 end
+    local maxRenown = GetFactionRenownCap(faction.factionId, faction.maxRenown)
+    if not data then return 0, maxRenown, 0, 2500 end
     local renown  = data.renownLevel or 0
     local rep     = data.renownReputationEarned or 0
     local needed  = data.renownLevelThreshold or 2500
-    return renown, faction.maxRenown, rep, needed
+    return renown, maxRenown, rep, needed
 end
 
 local renownFrame
@@ -77,6 +180,7 @@ local renownFrame
 local function BuildRenownFrame()
     local db        = MR.db and MR.db.profile or {}
     local compact   = db.renownCompact
+    local showLevel = db.renownShowLevel ~= false
     local FRAME_W   = db.renownWidth or 280
     local BAR_H     = db.renownBarH or 18
     local ROW_SPACE = compact and (BAR_H + 8) or (BAR_H + 34)
@@ -204,15 +308,17 @@ local function BuildRenownFrame()
         local nameLabel = rowFrame:CreateFontString(nil, "OVERLAY")
         nameLabel:SetFont(FONT_HEADERS, 10, "OUTLINE")
         nameLabel:SetPoint("TOPLEFT", rowFrame, "TOPLEFT", 8, -5)
+        nameLabel:SetPoint("RIGHT", rowFrame, "RIGHT", -58, -5)
         nameLabel:SetTextColor(cr, cg, cb)
         nameLabel:SetText(faction.label)
+        nameLabel:SetJustifyH("LEFT")
         if compact then nameLabel:Hide() end
 
         local renownLabel = rowFrame:CreateFontString(nil, "OVERLAY")
         renownLabel:SetFont(FONT_ROWS, db.renownFontSize or 9, "OUTLINE")
         renownLabel:SetPoint("TOPRIGHT", rowFrame, "TOPRIGHT", -6, -5)
         renownLabel:SetTextColor(0.65, 0.65, 0.65)
-        if compact then renownLabel:Hide() end
+        if compact or not showLevel then renownLabel:Hide() end
 
         local barBg = CreateFrame("Frame", nil, rowFrame, "BackdropTemplate")
         if compact then
@@ -238,6 +344,13 @@ local function BuildRenownFrame()
         barLabel:SetFont(FONT_ROWS, db.renownFontSize or 9, "OUTLINE")
         barLabel:SetPoint("CENTER", barBg, "CENTER", 0, 0)
         barLabel:SetTextColor(1, 1, 1)
+
+        local compactLevelLabel = barBg:CreateFontString(nil, "OVERLAY")
+        compactLevelLabel:SetFont(FONT_ROWS, math.max(8, (db.renownFontSize or 9) - 1), "OUTLINE")
+        compactLevelLabel:SetPoint("RIGHT", barBg, "RIGHT", -4, 0)
+        compactLevelLabel:SetJustifyH("RIGHT")
+        compactLevelLabel:SetTextColor(0.92, 0.92, 0.92)
+        compactLevelLabel:Hide()
 
         local shimmer = barBg:CreateTexture(nil, "OVERLAY")
         shimmer:SetPoint("TOPLEFT",    barBg, "TOPLEFT",    1, -1)
@@ -275,6 +388,7 @@ local function BuildRenownFrame()
             renownLabel = renownLabel,
             barFill     = barFill,
             barLabel    = barLabel,
+            compactLevelLabel = compactLevelLabel,
             shimmer     = shimmer,
             barBg       = barBg,
             faction     = faction,
@@ -372,6 +486,7 @@ RefreshRenownFrame = function()
     local db         = MR.db and MR.db.profile or {}
     local showRep    = db.renownShowRep ~= false
     local hideMaxed  = db.renownHideMaxed
+    local showLevel  = db.renownShowLevel ~= false
     for _, row in pairs(renownFrame.factionRows) do
         local faction   = row.faction
         local renown, maxRenown, rep, needed = GetRenownData(faction)
@@ -384,7 +499,33 @@ RefreshRenownFrame = function()
             if row.rowFrame then row.rowFrame:Show() end
         end
 
-        row.renownLabel:SetText(string.format("|cff%s%d|r |cff444444/|r |cff888888%d|r", faction.hex, renown, maxRenown))
+        if row.nameLabel then
+            row.nameLabel:SetText(faction.label)
+            if db.renownCompact then
+                row.nameLabel:Hide()
+            else
+                row.nameLabel:SetPoint("RIGHT", row.rowFrame, "RIGHT", showLevel and -58 or -8, -5)
+                row.nameLabel:Show()
+            end
+        end
+
+        if row.renownLabel then
+            if not db.renownCompact and showLevel then
+                row.renownLabel:SetText(string.format("|cff%s%d|r |cff444444/|r |cff888888%d|r", faction.hex, renown, maxRenown))
+                row.renownLabel:Show()
+            else
+                row.renownLabel:Hide()
+            end
+        end
+
+        if row.compactLevelLabel then
+            if db.renownCompact and showLevel then
+                row.compactLevelLabel:SetText(string.format("|cff%s%d|r|cff666666/|r|cffaaaaaa%d|r", faction.hex, renown, maxRenown))
+                row.compactLevelLabel:Show()
+            else
+                row.compactLevelLabel:Hide()
+            end
+        end
 
         local barW = row.barBg:GetWidth()
         if barW and barW > 2 then
@@ -449,16 +590,17 @@ end
 GetOrderedFactions = function()
     local db    = MR.db and MR.db.profile or {}
     local order = db.renownOrder or {}
+    local factions = BuildDynamicFactions()
     local result, seen = {}, {}
     for _, key in ipairs(order) do
-        for _, f in ipairs(FACTIONS) do
+        for _, f in ipairs(factions) do
             if f.key == key and not seen[key] then
                 result[#result+1] = f
                 seen[key] = true
             end
         end
     end
-    for _, f in ipairs(FACTIONS) do
+    for _, f in ipairs(factions) do
         if not seen[f.key] then result[#result+1] = f end
     end
     return result
