@@ -8,6 +8,9 @@ local L        = LibStub("AceLocale-3.0"):GetLocale(addonName)
 local MR = AceAddon:NewAddon(addonName, "AceEvent-3.0", "AceBucket-3.0", "AceTimer-3.0")
 ns.MR = MR
 
+local DAY_SECONDS = 24 * 60 * 60
+local WEEK_SECONDS = 7 * DAY_SECONDS
+
 local DEFAULTS = {
     profile = {
         locked          = false,
@@ -1147,9 +1150,6 @@ local WEEKLY_RESET_SCHEDULE = {
     [4] = { weekday = 4, hour = 3 }, 
     [5] = { weekday = 4, hour = 3 }, 
 }
-
-local DAY_SECONDS = 24 * 60 * 60
-local WEEK_SECONDS = 7 * DAY_SECONDS
 
 local function GetResetTimestampFromCountdown(secondsUntilReset, cycleSeconds)
     if type(secondsUntilReset) ~= "number" then
