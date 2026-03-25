@@ -9,6 +9,8 @@ local LeftAccent = ns.LeftAccent
 local TopAccent = ns.TopAccent
 local TitleBar = ns.TitleBar
 local CloseButton = ns.CloseButton
+local HeaderIconButton = ns.HeaderIconButton
+local HeaderToggleButton = ns.HeaderToggleButton
 local MakeBackdrop = ns.MakeBackdrop
 local OptionsGap = ns.OptionsGap
 local OptionsDivider = ns.OptionsDivider
@@ -18,6 +20,16 @@ local OptionsSlider = ns.OptionsSlider
 local OptionsBtn = ns.OptionsBtn
 local OptionsColorSwatch = ns.OptionsColorSwatch
 local L = LibStub("AceLocale-3.0"):GetLocale("MidnightRoutine", true)
+
+local function RefreshFonts()
+    if ns.EnsureFonts then
+        FONT_HEADERS, FONT_ROWS = ns.EnsureFonts()
+        return
+    end
+
+    FONT_HEADERS = ns.FONT_HEADERS or FONT_HEADERS
+    FONT_ROWS = ns.FONT_ROWS or FONT_ROWS
+end
 
 local MAP_TO_ZONE_KEY = {
     [2395] = "eversong",
@@ -275,6 +287,7 @@ local function ContentHeight(visible, W)
 end
 
 local function RebuildRaresFrame()
+    RefreshFonts()
     local wasShown = raresFrame and raresFrame:IsShown()
     if raresFrame then raresFrame:Hide(); raresFrame = nil end
     if MR.db and MR.db.profile.raresCollapsed then
@@ -290,6 +303,7 @@ local function RebuildRaresFrame()
 end
 
 BuildRaresFrame = function()
+    RefreshFonts()
     local db         = MR.db and MR.db.profile or {}
     local W          = db.raresWidth  or DEFAULT_W
     local H          = db.raresHeight or DEFAULT_H
@@ -335,59 +349,25 @@ BuildRaresFrame = function()
         if MR.db then MR.db.profile.raresOpen = false end
     end)
 
-    local gearBtn = CreateFrame("Button", nil, titleBar)
-    gearBtn:SetSize(14, 14)
-    gearBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0)
-    local gearTex = gearBtn:CreateTexture(nil, "ARTWORK")
-    gearTex:SetAllPoints()
-    gearTex:SetTexture("Interface\\Buttons\\UI-OptionsButton")
-    gearTex:SetVertexColor(0.55, 0.30, 0.90, 1)
-    gearBtn:SetNormalTexture(gearTex)
-    local gearHL = gearBtn:CreateTexture(nil, "HIGHLIGHT")
-    gearHL:SetAllPoints()
-    gearHL:SetTexture("Interface\\Buttons\\UI-OptionsButton")
-    gearHL:SetVertexColor(1, 1, 1, 1)
-    gearBtn:SetHighlightTexture(gearHL)
-    gearBtn:SetScript("OnClick",  function() MR:ToggleRaresConfig() end)
-    gearBtn:SetScript("OnEnter",  function()
-        gearTex:SetVertexColor(0.9, 0.6, 1, 1)
-        GameTooltip:SetOwner(gearBtn, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(L["Rares_OptionsTitle"], 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    gearBtn:SetScript("OnLeave",  function()
-        gearTex:SetVertexColor(0.55, 0.30, 0.90, 1)
-        GameTooltip:Hide()
-    end)
+    local gearBtn = HeaderIconButton(
+        titleBar,
+        "Interface\\Buttons\\UI-OptionsButton",
+        {0.85, 0.65, 0.20},
+        {1, 1, 1},
+        L["Rares_OptionsTitle"],
+        function() MR:ToggleRaresConfig() end
+    )
 
-    local minBtn = CreateFrame("Button", nil, titleBar, "BackdropTemplate")
-    minBtn:SetSize(16, 16)
-    minBtn:SetPoint("RIGHT", gearBtn, "LEFT", -4, 0)
-    minBtn:SetBackdrop(MakeBackdrop())
-    minBtn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
-    minBtn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
-    local minLbl = minBtn:CreateFontString(nil, "OVERLAY")
-    minLbl:SetFont(FONT_HEADERS, 12, "OUTLINE")
-    minLbl:SetPoint("CENTER", minBtn, "CENTER", 0, 1)
-    minLbl:SetTextColor(0.25, 0.80, 0.68)
     local function UpdateMinBtn()
-        minLbl:SetText((MR.db and MR.db.profile.raresMinimized) and "+" or "-")
+        return (MR.db and MR.db.profile.raresMinimized) and "+" or "-"
     end
+    local minBtn = HeaderToggleButton(titleBar, UpdateMinBtn, L["UI_Collapse"], function()
+        local isMin = not (MR.db and MR.db.profile.raresMinimized)
+        ApplyMinimized(isMin)
+    end)
+    minBtn:SetPoint("RIGHT", closeBtn, "LEFT", -3, 0)
+    gearBtn:SetPoint("RIGHT", minBtn, "LEFT", -3, 0)
     UpdateMinBtn()
-    minBtn:SetScript("OnEnter", function()
-        minBtn:SetBackdropColor(0.06, 0.22, 0.28, 1)
-        minBtn:SetBackdropBorderColor(0.20, 0.80, 0.65, 1)
-        minLbl:SetTextColor(1, 1, 1)
-        GameTooltip:SetOwner(minBtn, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(L["UI_Collapse"], 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    minBtn:SetScript("OnLeave", function()
-        minBtn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
-        minBtn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
-        minLbl:SetTextColor(0.25, 0.80, 0.68)
-        GameTooltip:Hide()
-    end)
 
     local totalDoneLabel = titleBar:CreateFontString(nil, "OVERLAY")
     totalDoneLabel:SetFont(FONT_ROWS, 9, "OUTLINE")
@@ -414,7 +394,7 @@ BuildRaresFrame = function()
 
     local function ApplyMinimized(isMin)
         if MR.db then MR.db.profile.raresMinimized = isMin end
-        UpdateMinBtn()
+        if minBtn.RefreshLabel then minBtn:RefreshLabel() end
         if isMin then
             if f._scroll      then f._scroll:Hide()   end
             if f._dragger     then f._dragger:Hide()   end
@@ -433,11 +413,6 @@ BuildRaresFrame = function()
         end
     end
     f.ApplyMinimized = ApplyMinimized
-
-    minBtn:SetScript("OnClick", function()
-        local isMin = not (MR.db and MR.db.profile.raresMinimized)
-        ApplyMinimized(isMin)
-    end)
 
     local scroll = CreateFrame("ScrollFrame", nil, f)
     scroll:SetPoint("TOPLEFT",     titleBar, "BOTTOMLEFT",  0, -1)
@@ -912,6 +887,7 @@ local function BuildRaresConfigFrame()
     f:SetClampedToScreen(true)
     f:SetMovable(true)
     f:SetBackdrop(MakeBackdrop())
+    if ns.HookBackdropFrame then ns.HookBackdropFrame(f) end
     f:SetBackdropColor(0.03, 0.02, 0.10, 0.98)
     f:SetBackdropBorderColor(0.30, 0.16, 0.55, 1)
     f:Hide()
@@ -934,6 +910,7 @@ local function BuildRaresConfigFrame()
 end
 
 PopulateRaresConfig = function(f)
+    RefreshFonts()
     if f.body then
         f.body:EnableMouse(false)
         f.body:Hide()

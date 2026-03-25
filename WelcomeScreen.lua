@@ -3,6 +3,7 @@ local MR = ns.MR
 
 local FONT_HEADERS = ns.FONT_HEADERS
 local FONT_ROWS = ns.FONT_ROWS
+local MakeBackdrop = ns.MakeBackdrop
 local hex = ns.Hex
 local StyledFrame = ns.StyledFrame
 local LeftAccent = ns.LeftAccent
@@ -88,7 +89,7 @@ local function BuildWelcomeScreen()
         d:SetPoint("TOPLEFT",  f, "TOPLEFT",   8, y)
         d:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, y)
         d:SetHeight(1)
-        d:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
+        d:SetBackdrop(MakeBackdrop(false))
         d:SetBackdropColor(0.16, 0.78, 0.75, 0.25)
     end
     MakeDivider(yOff)
@@ -137,7 +138,7 @@ local function BuildWelcomeScreen()
     renownPanel:SetPoint("TOPLEFT",  f, "TOPLEFT",   8, yOff)
     renownPanel:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, yOff)
     renownPanel:SetHeight(72)
-    renownPanel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    renownPanel:SetBackdrop(MakeBackdrop())
     renownPanel:SetBackdropColor(0.10, 0.08, 0.02, 0.85)
     renownPanel:SetBackdropBorderColor(0.65, 0.50, 0.10, 0.90)
 
@@ -176,7 +177,7 @@ local function BuildWelcomeScreen()
     raresPanel:SetPoint("TOPLEFT",  f, "TOPLEFT",   8, yOff)
     raresPanel:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, yOff)
     raresPanel:SetHeight(72)
-    raresPanel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    raresPanel:SetBackdrop(MakeBackdrop())
     raresPanel:SetBackdropColor(0.12, 0.03, 0.03, 0.85)
     raresPanel:SetBackdropBorderColor(0.65, 0.20, 0.10, 0.90)
 
@@ -215,7 +216,7 @@ local function BuildWelcomeScreen()
     gatheringPanel:SetPoint("TOPLEFT",  f, "TOPLEFT",   8, yOff)
     gatheringPanel:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, yOff)
     gatheringPanel:SetHeight(72)
-    gatheringPanel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    gatheringPanel:SetBackdrop(MakeBackdrop())
     gatheringPanel:SetBackdropColor(0.08, 0.10, 0.03, 0.85)
     gatheringPanel:SetBackdropBorderColor(0.65, 0.57, 0.10, 0.90)
 
@@ -257,7 +258,7 @@ local function BuildWelcomeScreen()
     enableAllBtn:SetPoint("TOPLEFT",  f, "TOPLEFT",  12, yOff)
     enableAllBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -12, yOff)
     enableAllBtn:SetHeight(22)
-    enableAllBtn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    enableAllBtn:SetBackdrop(MakeBackdrop())
     enableAllBtn:SetBackdropColor(0.04, 0.14, 0.22, 1)
     enableAllBtn:SetBackdropBorderColor(0.18, 0.55, 0.60, 1)
 
@@ -307,7 +308,7 @@ local function BuildWelcomeScreen()
     confirmBtn:SetPoint("TOPLEFT",  f, "TOPLEFT",  12, yOff)
     confirmBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -12, yOff)
     confirmBtn:SetHeight(28)
-    confirmBtn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    confirmBtn:SetBackdrop(MakeBackdrop())
     confirmBtn:SetBackdropColor(0.05, 0.20, 0.12, 1)
     confirmBtn:SetBackdropBorderColor(0.15, 0.78, 0.42, 1)
 

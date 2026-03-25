@@ -25,6 +25,7 @@ local OptionsCheckbox = ns.OptionsCheckbox
 local OptionsBtn = ns.OptionsBtn
 local OptionsSlider = ns.OptionsSlider
 local OptionsColorSwatch = ns.OptionsColorSwatch
+local ApplyBackgroundTexture = ns.ApplyBackgroundTexture
 
 local FONT_SIZE_MIN = 7
 local FONT_SIZE_MAX = 20
@@ -151,19 +152,23 @@ local function ApplyTheme()
     local t = MR.db.profile.transparentMode
     local v = MR.db.profile.frameAlpha or 1.0
     local f = MR.frame
+    f:SetBackdrop(MakeBackdrop())
+    if MR._titleBar then
+        MR._titleBar:SetBackdrop(MakeBackdrop())
+    end
     if t then
         f:SetBackdropColor(0, 0, 0, 0)
         f:SetBackdropBorderColor(0.3, 0.6, 0.8, 0.25 * v)
         if MR._titleBar    then MR._titleBar:SetBackdropColor(0.02, 0.18, 0.35, 0.45 * v) end
         if MR._titleBar    then MR._titleBar:SetBackdropBorderColor(0.10, 0.28, 0.35, 0.25 * v) end
-        if MR._scrollBg    then MR._scrollBg:SetColorTexture(0, 0, 0, 0) end
+        if MR._scrollBg    then ApplyBackgroundTexture(MR._scrollBg, 0, 0, 0, 0) end
         if MR._titleAccent then MR._titleAccent:SetAlpha(v) end
     else
         f:SetBackdropColor(COL.bg[1], COL.bg[2], COL.bg[3], COL.bg[4] * v)
         f:SetBackdropBorderColor(0.15, 0.15, 0.2, v)
         if MR._titleBar    then MR._titleBar:SetBackdropColor(0.05, 0.12, 0.22, v) end
         if MR._titleBar    then MR._titleBar:SetBackdropBorderColor(0.10, 0.28, 0.35, v) end
-        if MR._scrollBg    then MR._scrollBg:SetColorTexture(COL.bg[1], COL.bg[2], COL.bg[3], 0.96 * v) end
+        if MR._scrollBg    then ApplyBackgroundTexture(MR._scrollBg, COL.bg[1], COL.bg[2], COL.bg[3], 0.96 * v) end
         if MR._titleAccent then MR._titleAccent:SetAlpha(v) end
     end
 end
@@ -589,12 +594,7 @@ function MR:RefreshWarbandBoard()
     frame.heroName:SetText(selected.name)
     local syncAt = selected.lastSyncAt and selected.lastSyncAt > 0 and selected.lastSyncAt or selected.lastResetAt
     frame.heroMeta:SetText(string.format(L["AltBoard_LastSynced"] or "%s  |  Last synced: %s", selected.realm ~= "" and selected.realm or (L["AltBoard_UnknownRealm"] or "Unknown Realm"), WBFormatTimestamp(syncAt)))
-    if selected.concentration and #selected.concentration > 0 then
-        frame.heroStatus:SetText(string.format("Concentration tracked for %d profession%s", #selected.concentration, #selected.concentration == 1 and "" or "s"))
-        frame.heroStatus:SetTextColor(0.88, 0.76, 0.42)
-    else
-        frame.heroStatus:SetText("")
-    end
+    frame.heroStatus:SetText("")
 
     local detailWidth = math.max((frame.detailScroll and frame.detailScroll:GetWidth() or 540) - 8, 320)
     frame.detailContent:SetWidth(detailWidth)
@@ -613,71 +613,6 @@ function MR:RefreshWarbandBoard()
     end)
 
     local yOff = 0
-    if selected.concentration and #selected.concentration > 0 then
-        local card = CreateFrame("Frame", nil, frame.detailContent, "BackdropTemplate")
-        card:SetPoint("TOPLEFT", frame.detailContent, "TOPLEFT", 0, -yOff)
-        card:SetSize(1, 1)
-        card:SetWidth(detailWidth)
-        card:SetBackdrop(MakeBackdrop())
-        card:SetBackdropColor(0.03, 0.06, 0.11, 0.96)
-        card:SetBackdropBorderColor(0.10, 0.18, 0.25, 1)
-
-        local topAccent = card:CreateTexture(nil, "ARTWORK")
-        topAccent:SetPoint("TOPLEFT")
-        topAccent:SetPoint("TOPRIGHT")
-        topAccent:SetHeight(2)
-        topAccent:SetColorTexture(0.92, 0.72, 0.28, 1)
-
-        local title = card:CreateFontString(nil, "OVERLAY")
-        title:SetFont(FONT_HEADERS, math.max(10, GetFontSize() + 1), "OUTLINE")
-        title:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -10)
-        title:SetText("Profession Concentration")
-        title:SetTextColor(0.92, 0.78, 0.38)
-
-        local sub = card:CreateFontString(nil, "OVERLAY")
-        sub:SetFont(FONT_ROWS, math.max(8, GetFontSize() - 1), "OUTLINE")
-        sub:SetPoint("RIGHT", card, "RIGHT", -12, 0)
-        sub:SetPoint("TOP", card, "TOP", 0, -10)
-        sub:SetText(string.format("%d tracked", #selected.concentration))
-        sub:SetTextColor(0.72, 0.79, 0.86)
-
-        local moduleY = 34
-        for _, concentrationEntry in ipairs(selected.concentration) do
-            local row = CreateFrame("Frame", nil, card)
-            row:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -moduleY)
-            row:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -moduleY)
-            row:SetHeight(22)
-
-            local rr, rg, rb = WBConcentrationColor(concentrationEntry)
-
-            local dot = row:CreateTexture(nil, "ARTWORK")
-            dot:SetSize(7, 7)
-            dot:SetPoint("LEFT", row, "LEFT", 2, 0)
-            dot:SetColorTexture(rr, rg, rb, 1)
-
-            local label = row:CreateFontString(nil, "OVERLAY")
-            label:SetFont(FONT_ROWS, GetFontSize(), "OUTLINE")
-            label:SetPoint("LEFT", row, "LEFT", 16, 0)
-            label:SetPoint("RIGHT", row, "RIGHT", -120, 0)
-            label:SetJustifyH("LEFT")
-            label:SetText(concentrationEntry.label)
-            label:SetTextColor(0.90, 0.93, 0.97)
-
-            local value = row:CreateFontString(nil, "OVERLAY")
-            value:SetFont(FONT_ROWS, GetFontSize(), "OUTLINE")
-            value:SetPoint("RIGHT", row, "RIGHT", -2, 0)
-            value:SetJustifyH("RIGHT")
-            value:SetText(WBConcentrationText(concentrationEntry))
-            value:SetTextColor(rr, rg, rb)
-
-            table.insert(frame.detailWidgets, row)
-            moduleY = moduleY + 23
-        end
-
-        card:SetHeight(moduleY + 10)
-        table.insert(frame.detailWidgets, card)
-        yOff = yOff + moduleY + 18
-    end
 
     for _, moduleEntry in ipairs(selected.modules) do
         local card = CreateFrame("Frame", nil, frame.detailContent, "BackdropTemplate")
@@ -966,6 +901,9 @@ function MR:ToggleWarbandBoard()
         frame.heroName = heroName
         frame.heroMeta = heroMeta
         frame.heroStatus = heroStatus
+        frame.titleText = title
+        frame.leftLabel = leftLabel
+        frame.showHiddenLabel = showHiddenLabel
 
         self.altBoardFrame = frame
     end
@@ -1055,11 +993,8 @@ function MR:BuildUI()
     f:SetWidth(w)
     f:SetHeight(h)
     f:SetFrameStrata("MEDIUM")
-    f:SetBackdrop({
-        bgFile   = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
+    f:SetBackdrop(MakeBackdrop())
+    if ns.HookBackdropFrame then ns.HookBackdropFrame(f) end
     f:SetBackdropColor(COL.bg[1], COL.bg[2], COL.bg[3], COL.bg[4])
     f:SetBackdropBorderColor(0.15, 0.15, 0.2, 1)
     f:SetMovable(true)
@@ -1083,7 +1018,7 @@ function MR:BuildUI()
     local scrollBg = f:CreateTexture(nil, "BACKGROUND")
     scrollBg:SetPoint("TOPLEFT",     f, "TOPLEFT",     0, -HEADER_H)
     scrollBg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0,   0)
-    scrollBg:SetColorTexture(COL.bg[1], COL.bg[2], COL.bg[3], 0.96)
+    ApplyBackgroundTexture(scrollBg, COL.bg[1], COL.bg[2], COL.bg[3], 0.96)
     MR._scrollBg = scrollBg
 
     local titleBar = CreateFrame("Frame", nil, f, "BackdropTemplate")
@@ -1091,7 +1026,8 @@ function MR:BuildUI()
     titleBar:SetPoint("TOPLEFT")
     titleBar:SetPoint("TOPRIGHT")
     titleBar:SetHeight(HEADER_H)
-    titleBar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    titleBar:SetBackdrop(MakeBackdrop())
+    if ns.HookBackdropFrame then ns.HookBackdropFrame(titleBar) end
     titleBar:SetBackdropColor(0.04, 0.10, 0.20, 1)
     titleBar:SetBackdropBorderColor(0.10, 0.28, 0.35, 1)
     titleBar:EnableMouse(true)
@@ -1123,6 +1059,7 @@ function MR:BuildUI()
     title:SetFont(FONT_HEADERS, math.max(9, GetFontSize()), "OUTLINE")
     title:SetPoint("LEFT", titleIcon, "RIGHT", 5, 0)
     title:SetText(L["Title"])
+    self.titleText = title
 
     local titleCount = titleBar:CreateFontString(nil, "OVERLAY")
     titleCount:SetFont(FONT_ROWS, math.max(8, GetFontSize() - 1), "OUTLINE")
@@ -1136,7 +1073,7 @@ function MR:BuildUI()
     local function MakeHeaderBtn(icon, normalColor, hoverBg, hoverBorder, tooltipText, tooltipSub)
         local btn = CreateFrame("Button", nil, titleBar, "BackdropTemplate")
         btn:SetSize(BTN_SIZE, BTN_SIZE)
-        btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+        btn:SetBackdrop(MakeBackdrop())
         btn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
         btn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
 
@@ -1309,7 +1246,7 @@ function MR:BuildUI()
     local warbandBtn = CreateFrame("Button", nil, titleBar, "BackdropTemplate")
     warbandBtn:SetSize(42, BTN_SIZE)
     warbandBtn:SetPoint("RIGHT", cfgBtn, "LEFT", -BTN_PAD, 0)
-    warbandBtn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    warbandBtn:SetBackdrop(MakeBackdrop())
     warbandBtn:SetBackdropColor(0.06, 0.14, 0.24, 0.95)
     warbandBtn:SetBackdropBorderColor(0.18, 0.48, 0.50, 0.95)
     local warbandGlow = warbandBtn:CreateTexture(nil, "BACKGROUND")
@@ -1322,6 +1259,7 @@ function MR:BuildUI()
     warbandText:SetPoint("CENTER", warbandBtn, "CENTER", 0, 1)
     warbandText:SetText(L["AltBoard_ButtonLabel"] or "ALTS")
     warbandText:SetTextColor(0.76, 0.97, 0.94)
+    self.warbandBtnText = warbandText
     warbandBtn:SetScript("OnEnter", function(selfBtn)
         selfBtn:SetBackdropColor(0.09, 0.20, 0.30, 1)
         selfBtn:SetBackdropBorderColor(0.28, 0.90, 0.84, 1)
@@ -1579,11 +1517,8 @@ function MR:EnsureDetachedFrame(mod)
     local title = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
     title:SetSize(savedSize and savedSize.width or defaultW, savedSize and savedSize.height or defaultH)
     title:SetFrameStrata("MEDIUM")
-    title:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
+    title:SetBackdrop(MakeBackdrop())
+    if ns.HookBackdropFrame then ns.HookBackdropFrame(title) end
     title:SetBackdropColor(COL.bg[1], COL.bg[2], COL.bg[3], COL.bg[4])
     title:SetBackdropBorderColor(0.15, 0.15, 0.2, 1)
     title:SetClampedToScreen(true)
@@ -1600,7 +1535,8 @@ function MR:EnsureDetachedFrame(mod)
     dragBar:SetPoint("TOPLEFT", title, "TOPLEFT", 0, 0)
     dragBar:SetPoint("TOPRIGHT", title, "TOPRIGHT", 0, 0)
     dragBar:SetHeight(6)
-    dragBar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    dragBar:SetBackdrop(MakeBackdrop())
+    if ns.HookBackdropFrame then ns.HookBackdropFrame(dragBar) end
     dragBar:SetBackdropColor(0.04, 0.10, 0.20, 1)
     dragBar:SetBackdropBorderColor(0.10, 0.28, 0.35, 1)
     dragBar:EnableMouse(false)
@@ -1867,6 +1803,78 @@ function MR:RefreshUI()
     self._moduleStatsCache = nil
 end
 
+function MR:ApplySharedMediaSettings()
+    if ns.ApplySharedMedia then
+        ns.ApplySharedMedia(self.GetActiveMediaSettings and self:GetActiveMediaSettings() or (self.db and self.db.profile))
+    end
+
+    RefreshFonts()
+    local fontSize = GetFontSize()
+    if self.titleText then
+        self.titleText:SetFont(FONT_HEADERS, math.max(9, fontSize), "OUTLINE")
+    end
+    if self.titleCount then
+        self.titleCount:SetFont(FONT_ROWS, math.max(8, fontSize - 1), "OUTLINE")
+    end
+    if self.warbandBtnText then
+        self.warbandBtnText:SetFont(FONT_HEADERS, 9, "OUTLINE")
+    end
+    if self.altBoardFrame then
+        local frame = self.altBoardFrame
+        if frame.titleText then
+            frame.titleText:SetFont(FONT_HEADERS, math.max(12, fontSize + 2), "OUTLINE")
+        end
+        if frame.summaryValue then
+            frame.summaryValue:SetFont(FONT_HEADERS, math.max(11, fontSize + 1), "OUTLINE")
+        end
+        if frame.summarySub then
+            frame.summarySub:SetFont(FONT_ROWS, math.max(8, fontSize - 1), "OUTLINE")
+        end
+        if frame.leftLabel then
+            frame.leftLabel:SetFont(FONT_ROWS, math.max(9, fontSize), "OUTLINE")
+        end
+        if frame.showHiddenLabel then
+            frame.showHiddenLabel:SetFont(FONT_ROWS, 9, "OUTLINE")
+        end
+        if frame.heroName then
+            frame.heroName:SetFont(FONT_HEADERS, math.max(13, fontSize + 3), "OUTLINE")
+        end
+        if frame.heroMeta then
+            frame.heroMeta:SetFont(FONT_ROWS, math.max(8, fontSize - 1), "OUTLINE")
+        end
+        if frame.heroStatus then
+            frame.heroStatus:SetFont(FONT_ROWS, math.max(10, fontSize), "OUTLINE")
+        end
+    end
+    ApplyTheme()
+    local configWasShown = cfgFrame and cfgFrame:IsShown() or false
+    if cfgFrame then
+        cfgFrame:Hide()
+        cfgFrame = nil
+    end
+    if self.frame and ns.RefreshFrameBackground then
+        ns.RefreshFrameBackground(self.frame)
+    end
+    if self._titleBar and ns.RefreshFrameBackground then
+        ns.RefreshFrameBackground(self._titleBar)
+    end
+    self:RefreshUI()
+
+    if self.RebuildRaresFrame then self:RebuildRaresFrame() end
+    if self.RebuildGatheringLocationsFrame then self:RebuildGatheringLocationsFrame() end
+    if self.RebuildRenownFrame then self:RebuildRenownFrame() end
+    if self.RepopulateRaresConfig then self:RepopulateRaresConfig() end
+    if self.RepopulateGatheringConfig then self:RepopulateGatheringConfig() end
+    if self.RepopulateRenownConfig then self:RepopulateRenownConfig() end
+    if configWasShown then
+        cfgFrame = self:BuildConfigFrame()
+        self:PopulateConfigFrame(cfgFrame)
+        cfgFrame:Show()
+    elseif cfgFrame and cfgFrame:IsShown() then
+        self:PopulateConfigFrame(cfgFrame)
+    end
+end
+
 function MR:IsRowComplete(mod, row, done)
     if row.completeFunc then
         return row.completeFunc(done, row, mod) == true
@@ -2074,7 +2082,7 @@ function MR:BuildSection(mod, yOff, xOff, colW, col, parent, widgetBucket, opts)
     local div = CreateFrame("Frame", nil, parent, "BackdropTemplate")
     div:SetPoint("TOPLEFT", parent, "TOPLEFT", xOff, -yOff)
     div:SetSize(colW, 1)
-    div:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
+    div:SetBackdrop(MakeBackdrop(false))
     div:SetBackdropColor(1, 1, 1, 0.06)
     table.insert(widgetBucket, div)
 
@@ -2411,11 +2419,8 @@ function MR:BuildConfigFrame()
     f:SetFrameStrata("HIGH")
     f:SetClampedToScreen(true)
     f:SetMovable(true)
-    f:SetBackdrop({
-        bgFile   = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Buttons\\WHITE8X8",
-        edgeSize = 1,
-    })
+    f:SetBackdrop(MakeBackdrop())
+    if ns.HookBackdropFrame then ns.HookBackdropFrame(f) end
     f:SetBackdropColor(0.03, 0.06, 0.12, 0.98)
     f:SetBackdropBorderColor(0.4, 0.28, 0, 1)
     f:Hide()
@@ -2429,7 +2434,8 @@ function MR:BuildConfigFrame()
     tbar:SetPoint("TOPLEFT")
     tbar:SetPoint("TOPRIGHT")
     tbar:SetHeight(22)
-    tbar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
+    tbar:SetBackdrop(MakeBackdrop(false))
+    if ns.HookBackdropFrame then ns.HookBackdropFrame(tbar) end
     tbar:SetBackdropColor(0.06, 0.10, 0.20, 1)
     tbar:EnableMouse(true)
     tbar:RegisterForDrag("LeftButton")
@@ -2440,11 +2446,10 @@ function MR:BuildConfigFrame()
     ttitle:SetFont(FONT_HEADERS, 11, "OUTLINE")
     ttitle:SetText(L["Config_Title"])
     ttitle:SetPoint("LEFT", tbar, "LEFT", 8, 0)
+    f.titleText = ttitle
+    f.titleBar = tbar
 
-    local closeBtn = CreateFrame("Button", nil, tbar, "UIPanelCloseButton")
-    closeBtn:SetSize(18, 18)
-    closeBtn:SetPoint("RIGHT", tbar, "RIGHT", -2, 0)
-    closeBtn:SetScript("OnClick", function() f:Hide() end)
+    local closeBtn = CloseButton(tbar, function() f:Hide() end)
 
     return f
 end
@@ -2500,8 +2505,159 @@ function MR:PopulateConfigFrame(f)
         yOff = OptionsCheckbox(body, yOff, label, getVal, setVal, r, g, b, 4, nil, cfgFs)
     end
     local function Btn(label, onClick) yOff = OptionsBtn(body, yOff, label, onClick, math.max(192, contentW), 8, cfgFs) end
+    local function MediaSelector(label, kind, getVal, setVal)
+        local sharedMedia = ns.GetSharedMedia and ns.GetSharedMedia()
+        local defaultLabel = kind == "font" and "Game Default" or "Midnight Default"
+        local options = { defaultLabel }
+        local seen = { [options[1]] = true }
+        if ns.GetSharedMediaList then
+            for _, name in ipairs(ns.GetSharedMediaList(kind)) do
+                if type(name) == "string" and name ~= "" and not seen[name] then
+                    options[#options + 1] = name
+                    seen[name] = true
+                end
+            end
+        end
+
+        local current = getVal()
+        if current == ns.MEDIA_DEFAULT_TOKEN or current == nil then
+            current = options[1]
+        end
+        local currentIndex = 1
+        for index, name in ipairs(options) do
+            if name == current then
+                currentIndex = index
+                break
+            end
+        end
+
+        local caption = body:CreateFontString(nil, "OVERLAY")
+        caption:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+        caption:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
+        caption:SetPoint("TOPRIGHT", body, "TOPRIGHT", -8, yOff)
+        caption:SetJustifyH("LEFT")
+        caption:SetWordWrap(false)
+        caption:SetText("|cff888888" .. label .. "|r")
+
+        yOff = yOff - 14
+
+        local row = CreateFrame("Frame", nil, body)
+        row:SetPoint("TOPLEFT", body, "TOPLEFT", 8, yOff)
+        row:SetSize(contentW, 20)
+
+        local function BuildArrow(text, anchor, rel, xOff)
+            local btn = CreateFrame("Button", nil, row, "BackdropTemplate")
+            btn:SetSize(20, 20)
+            btn:SetPoint(anchor, rel, anchor, xOff, 0)
+            btn:SetBackdrop(MakeBackdrop())
+            btn:SetBackdropColor(0.05, 0.10, 0.18, 1)
+            btn:SetBackdropBorderColor(0.18, 0.40, 0.45, 1)
+
+            local fs = btn:CreateFontString(nil, "OVERLAY")
+            fs:SetFont(FONT_HEADERS, 10, "OUTLINE")
+            fs:SetPoint("CENTER")
+            fs:SetText(text)
+            fs:SetTextColor(0.70, 0.88, 0.85)
+
+            btn:SetScript("OnEnter", function()
+                btn:SetBackdropColor(0.08, 0.22, 0.32, 1)
+                btn:SetBackdropBorderColor(0.25, 0.85, 0.72, 1)
+                fs:SetTextColor(1, 1, 1)
+            end)
+            btn:SetScript("OnLeave", function()
+                btn:SetBackdropColor(0.05, 0.10, 0.18, 1)
+                btn:SetBackdropBorderColor(0.18, 0.40, 0.45, 1)
+                fs:SetTextColor(0.70, 0.88, 0.85)
+            end)
+
+            return btn
+        end
+
+        local prev = BuildArrow("<", "LEFT", row, 0)
+
+        local valueBtn = CreateFrame("Button", nil, row, "BackdropTemplate")
+        valueBtn:SetSize(math.max(140, contentW - 72), 20)
+        valueBtn:SetPoint("LEFT", prev, "RIGHT", 4, 0)
+        valueBtn:SetBackdrop(MakeBackdrop())
+        valueBtn:SetBackdropColor(0.03, 0.06, 0.11, 1)
+        valueBtn:SetBackdropBorderColor(0.16, 0.30, 0.34, 1)
+
+        local valueText = valueBtn:CreateFontString(nil, "OVERLAY")
+        valueText:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+        valueText:SetPoint("LEFT", valueBtn, "LEFT", 6, 0)
+        valueText:SetPoint("RIGHT", valueBtn, "RIGHT", -6, 0)
+        valueText:SetJustifyH("LEFT")
+        valueText:SetWordWrap(false)
+
+        local nextBtn = BuildArrow(">", "LEFT", valueBtn, valueBtn:GetWidth() + 4)
+
+        local resetBtn = CreateFrame("Button", nil, row, "BackdropTemplate")
+        resetBtn:SetSize(20, 20)
+        resetBtn:SetPoint("LEFT", nextBtn, "RIGHT", 4, 0)
+        resetBtn:SetBackdrop(MakeBackdrop())
+        resetBtn:SetBackdropColor(0.12, 0.04, 0.04, 1)
+        resetBtn:SetBackdropBorderColor(0.45, 0.12, 0.12, 1)
+
+        local resetText = resetBtn:CreateFontString(nil, "OVERLAY")
+        resetText:SetFont(FONT_HEADERS, 10, "OUTLINE")
+        resetText:SetPoint("CENTER", resetBtn, "CENTER", 0, 1)
+        resetText:SetText("x")
+        resetText:SetTextColor(0.75, 0.28, 0.28)
+
+        local function ApplySelection(index, commit)
+            currentIndex = index
+            local selected = options[currentIndex] or options[1]
+            valueText:SetText(selected)
+            if commit ~= false then
+                local isDefault = selected == options[1]
+                local name = isDefault and ns.MEDIA_DEFAULT_TOKEN or selected
+                local path
+                if name and name ~= ns.MEDIA_DEFAULT_TOKEN and sharedMedia then
+                    local mediaType = kind == "font" and sharedMedia.MediaType.FONT or sharedMedia.MediaType.BACKGROUND
+                    path = sharedMedia:Fetch(mediaType, name, true)
+                end
+                if isDefault and kind == "font" and ns.GetDefaultFontTexture then
+                    path = ns.GetDefaultFontTexture()
+                elseif isDefault and kind == "background" and ns.GetDefaultBackgroundTexture then
+                    path = ns.GetDefaultBackgroundTexture()
+                end
+                setVal(name, path)
+            end
+        end
+
+        prev:SetScript("OnClick", function()
+            local nextIndex = currentIndex - 1
+            if nextIndex < 1 then
+                nextIndex = #options
+            end
+            ApplySelection(nextIndex, true)
+        end)
+        nextBtn:SetScript("OnClick", function()
+            local nextIndex = currentIndex + 1
+            if nextIndex > #options then
+                nextIndex = 1
+            end
+            ApplySelection(nextIndex, true)
+        end)
+        valueBtn:SetScript("OnClick", function()
+            local nextIndex = currentIndex + 1
+            if nextIndex > #options then
+                nextIndex = 1
+            end
+            ApplySelection(nextIndex, true)
+        end)
+        resetBtn:SetScript("OnClick", function()
+            ApplySelection(1, true)
+        end)
+
+        ApplySelection(currentIndex, false)
+        yOff = yOff - 26
+    end
     local function SetLayoutMode(enabled)
         MR.db.profile.characterWindowLayout = enabled
+        if MR.ApplySharedMediaSettings then
+            MR:ApplySharedMediaSettings()
+        end
         MR:RefreshUI()
         if MR.frame then
             MR.frame:ClearAllPoints()
@@ -2540,7 +2696,7 @@ function MR:PopulateConfigFrame(f)
             local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
             btn:SetSize(tabW, 18)
             btn:SetPoint("TOPLEFT", body, "TOPLEFT", 8 + (i - 1) * (tabW + 2), tabY)
-            btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            btn:SetBackdrop(MakeBackdrop())
             local isActive = activePage == tab.key
             btn:SetBackdropColor(isActive and 0.11 or 0.05, isActive and 0.24 or 0.09, isActive and 0.23 or 0.15, 1)
             btn:SetBackdropBorderColor(isActive and 0.22 or 0.16, isActive and 0.82 or 0.28, isActive and 0.70 or 0.36, 1)
@@ -2649,7 +2805,7 @@ function MR:PopulateConfigFrame(f)
         Checkbox(L["Config_PeekOnHover"],
             function() return MR.db.profile.peekOnHover end,
             function(v) MR:ApplyPeekOnHover(v) end)
-        Checkbox("Auto-Hide Panel Headers",
+        Checkbox(L["Config_AutoHidePanelHeaders"],
             function() return MR.db.profile.autoHidePanelHeaders end,
             function(v)
                 MR.db.profile.autoHidePanelHeaders = v
@@ -2675,7 +2831,7 @@ function MR:PopulateConfigFrame(f)
             local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
             btn:SetSize(modeBtnW, 18)
             btn:SetPoint("TOPLEFT", body, "TOPLEFT", x, modeY)
-            btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            btn:SetBackdrop(MakeBackdrop())
             local active = MR.db.profile.characterWindowLayout == enabled
             btn:SetBackdropColor(active and 0.12 or 0.05, active and 0.30 or 0.09, active and 0.24 or 0.16, 1)
             btn:SetBackdropBorderColor(active and 0.24 or 0.16, active and 0.82 or 0.28, active and 0.70 or 0.36, 1)
@@ -2739,7 +2895,7 @@ function MR:PopulateConfigFrame(f)
             local pb = CreateFrame("Button", nil, body, "BackdropTemplate")
             pb:SetSize(btnW, 16)
             pb:SetPoint("TOPLEFT", body, "TOPLEFT", 8 + (i - 1) * (btnW + 2), yOff - 18)
-            pb:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            pb:SetBackdrop(MakeBackdrop())
             local isActive = (GetFontSize() == p[2])
             pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, 1)
             pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, 1)
@@ -2777,6 +2933,33 @@ function MR:PopulateConfigFrame(f)
                 MR:PopulateConfigFrame(f)
             end,
             0.78, 0.55, 0.16, 8, nil, cfgFs)
+
+        Gap(4); Divider()
+        SectionLabel(L["Config_SharedMedia"] or "Shared Media")
+        MediaSelector(L["Config_Font"] or "Font", "font",
+            function() return MR.GetMediaSetting and MR:GetMediaSetting("fontMedia") or MR.db.profile.fontMedia end,
+            function(value, path)
+                if MR.SetMediaSetting then
+                    MR:SetMediaSetting("fontMedia", value)
+                    MR:SetMediaSetting("fontMediaPath", path)
+                else
+                    MR.db.profile.fontMedia = value
+                    MR.db.profile.fontMediaPath = path
+                end
+                MR:ApplySharedMediaSettings()
+            end)
+        MediaSelector(L["Config_BackgroundTexture"] or "Background texture", "background",
+            function() return MR.GetMediaSetting and MR:GetMediaSetting("backgroundMedia") or MR.db.profile.backgroundMedia end,
+            function(value, path)
+                if MR.SetMediaSetting then
+                    MR:SetMediaSetting("backgroundMedia", value)
+                    MR:SetMediaSetting("backgroundMediaPath", path)
+                else
+                    MR.db.profile.backgroundMedia = value
+                    MR.db.profile.backgroundMediaPath = path
+                end
+                MR:ApplySharedMediaSettings()
+            end)
 
         Gap(4)
         yOff = OptionsSlider(body, yOff, L["BACKGROUND"], 0, 1, 0.05,
@@ -2827,7 +3010,7 @@ function MR:PopulateConfigFrame(f)
         else
             btn:SetPoint("RIGHT", anchorRight, "LEFT", -2, 0)
         end
-        btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+        btn:SetBackdrop(MakeBackdrop())
         btn:SetBackdropColor(0.05, 0.10, 0.18, 1)
         btn:SetBackdropBorderColor(
             hideActive and 0.15 or 0.35,
@@ -2884,7 +3067,7 @@ function MR:PopulateConfigFrame(f)
     local dragGhost = CreateFrame("Frame", nil, body, "BackdropTemplate")
     dragGhost:SetHeight(20)
     dragGhost:SetFrameStrata("DIALOG")
-    dragGhost:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    dragGhost:SetBackdrop(MakeBackdrop())
     dragGhost:SetBackdropColor(0.08, 0.28, 0.22, 0.95)
     dragGhost:SetBackdropBorderColor(0.2, 0.9, 0.65, 1)
     dragGhost:Hide()
@@ -3038,7 +3221,7 @@ function MR:PopulateConfigFrame(f)
                 grip:SetSize(16, ROW_H - 2)
                 grip:SetPoint("LEFT", headerFr, "LEFT", 1, 0)
                 grip:RegisterForClicks("LeftButtonUp")
-                grip:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+                grip:SetBackdrop(MakeBackdrop())
                 grip:SetBackdropColor(0.12, 0.22, 0.20, 0.6)
                 grip:SetBackdropBorderColor(0.30, 0.55, 0.48, 0.7)
                 local gripLbl = grip:CreateFontString(nil, "OVERLAY")
@@ -3117,7 +3300,7 @@ function MR:PopulateConfigFrame(f)
             local arrowBtn = CreateFrame("Button", nil, headerFr, "BackdropTemplate")
             arrowBtn:SetSize(16, 16)
             arrowBtn:SetPoint("RIGHT", headerFr, "RIGHT", 0, 0)
-            arrowBtn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            arrowBtn:SetBackdrop(MakeBackdrop())
             arrowBtn:SetBackdropColor(0.05, 0.10, 0.18, 1)
             arrowBtn:SetBackdropBorderColor(0.15, 0.32, 0.38, 1)
             local arrowLbl = arrowBtn:CreateFontString(nil, "OVERLAY")
@@ -3148,7 +3331,7 @@ function MR:PopulateConfigFrame(f)
             grip:SetSize(16, ROW_H - 2)
             grip:SetPoint("LEFT", headerFr, "LEFT", 1, 0)
             grip:RegisterForClicks("LeftButtonUp")
-            grip:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+            grip:SetBackdrop(MakeBackdrop())
             grip:SetBackdropColor(0.12, 0.22, 0.20, 0.6)
             grip:SetBackdropBorderColor(0.30, 0.55, 0.48, 0.7)
             local gripLbl = grip:CreateFontString(nil, "OVERLAY")
@@ -3244,7 +3427,7 @@ function MR:PopulateConfigFrame(f)
                     local eyeBtn = CreateFrame("Button", nil, rowFr, "BackdropTemplate")
                     eyeBtn:SetSize(14, 14)
                     eyeBtn:SetPoint("RIGHT", rowFr, "RIGHT", 0, 0)
-                    eyeBtn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+                    eyeBtn:SetBackdrop(MakeBackdrop())
                     eyeBtn:SetBackdropColor(0.05, 0.10, 0.18, 1)
                     eyeBtn:SetBackdropBorderColor(
                         enabled and 0.15 or 0.35,

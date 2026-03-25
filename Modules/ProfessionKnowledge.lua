@@ -9,6 +9,8 @@ local LeftAccent = ns.LeftAccent
 local TopAccent = ns.TopAccent
 local TitleBar = ns.TitleBar
 local CloseButton = ns.CloseButton
+local HeaderIconButton = ns.HeaderIconButton
+local HeaderToggleButton = ns.HeaderToggleButton
 local MakeBackdrop = ns.MakeBackdrop
 local OptionsGap = ns.OptionsGap
 local OptionsDivider = ns.OptionsDivider
@@ -24,6 +26,16 @@ local gatheringMinimized = false
 local gatheringCfgFrame
 local PopulateGatheringConfig
 local RebuildGatheringLocationsFrame
+
+local function RefreshFonts()
+    if ns.EnsureFonts then
+        FONT_HEADERS, FONT_ROWS = ns.EnsureFonts()
+        return
+    end
+
+    FONT_HEADERS = ns.FONT_HEADERS or FONT_HEADERS
+    FONT_ROWS = ns.FONT_ROWS or FONT_ROWS
+end
 
 local DEFAULT_W = 350
 local DEFAULT_H = 450
@@ -178,7 +190,7 @@ local PROFESSIONS = {
         { key = "discoveries", label = L["ProfKnowledge_Section_Discoveries"], entries = {
             T{ itemID = 238599, questID = 89147, kp = 3, zone = 2395, x = 38.0, y = 45.3 }, T{ itemID = 238597, questID = 89145, kp = 3, zone = 2437, x = 41.9, y = 46.3 },
             T{ itemID = 238603, questID = 89151, kp = 3, zone = 2413, x = 38.8, y = 65.9 }, T{ itemID = 238601, questID = 89149, kp = 3, zone = 2536, x = 33.6, y = 66.0 },
-            T{ itemID = 238602, questID = 89150, kp = 3, zone = 2444, x = 34.2, y = 75.9 }, T{ itemID = 238600, questID = 89148, kp = 3, zone = 2444, x = 28.7, y = 38.6 },
+            T{ itemID = 238602, questID = 89150, kp = 3, zone = 2405, x = 41.8, y = 38.2 }, T{ itemID = 238600, questID = 89148, kp = 3, zone = 2444, x = 28.7, y = 38.6 },
             T{ itemID = 238598, questID = 89146, kp = 3, zone = 2444, x = 54.2, y = 51.6 }, T{ itemID = 238596, questID = 89144, kp = 3, zone = 2444, x = 30.0, y = 69.0 },
         } },
         { key = "studies", label = L["ProfKnowledge_Section_Studies"], entries = {
@@ -405,6 +417,7 @@ local function GetProfessionColor(professionKey)
 end
 
 local function BuildGatheringLocationsFrame(isRetry)
+    RefreshFonts()
     local db = MR.db and MR.db.profile or {}
     local hadProfCache = MR.playerProfessions and next(MR.playerProfessions) ~= nil
     if not hadProfCache and MR.RefreshPlayerProfessions then MR:RefreshPlayerProfessions() end
@@ -447,35 +460,18 @@ local function BuildGatheringLocationsFrame(isRetry)
         if MR.db then MR.db.profile.gatheringLocOpen = false end
     end)
 
-    local gearBtn = CreateFrame("Button", nil, titleBar)
-    gearBtn:SetSize(14, 14)
-    gearBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0)
-    local gearTex = gearBtn:CreateTexture(nil, "ARTWORK")
-    gearTex:SetAllPoints()
-    gearTex:SetTexture("Interface\\Buttons\\UI-OptionsButton")
-    gearTex:SetVertexColor(0.80, 0.53, 0.20, 1)
-    gearBtn:SetNormalTexture(gearTex)
-    local gearHL = gearBtn:CreateTexture(nil, "HIGHLIGHT")
-    gearHL:SetAllPoints()
-    gearHL:SetTexture("Interface\\Buttons\\UI-OptionsButton")
-    gearHL:SetVertexColor(1, 1, 1, 1)
-    gearBtn:SetHighlightTexture(gearHL)
-    gearBtn:SetScript("OnEnter", function()
-        gearTex:SetVertexColor(1, 0.82, 0.40, 1)
-        GameTooltip:SetOwner(gearBtn, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(L["ProfKnowledge_OptionsTitle"], 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    gearBtn:SetScript("OnLeave", function()
-        gearTex:SetVertexColor(0.80, 0.53, 0.20, 1)
-        GameTooltip:Hide()
-    end)
-    gearBtn:SetScript("OnClick", function() MR:ToggleGatheringLocationsConfig() end)
+    local gearBtn = HeaderIconButton(
+        titleBar,
+        "Interface\\Buttons\\UI-OptionsButton",
+        {0.85, 0.65, 0.20},
+        {1, 1, 1},
+        L["ProfKnowledge_OptionsTitle"],
+        function() MR:ToggleGatheringLocationsConfig() end
+    )
 
     local titleTxt = titleBar:CreateFontString(nil, "OVERLAY")
     titleTxt:SetFont(FONT_HEADERS, 10, "OUTLINE")
     titleTxt:SetPoint("LEFT", titleIcon, "RIGHT", 5, 0)
-    titleTxt:SetPoint("RIGHT", gearBtn, "LEFT", -48, 0)
     titleTxt:SetJustifyH("LEFT")
     titleTxt:SetText(L["ProfKnowledge_Title"])
 
@@ -592,23 +588,12 @@ local function BuildGatheringLocationsFrame(isRetry)
     scroll:SetScript("OnVerticalScroll", UpdateScrollBar)
     frame.UpdateScrollBar = UpdateScrollBar
 
-    local minBtn = CreateFrame("Button", nil, titleBar, "BackdropTemplate")
-    minBtn:SetSize(16, 16)
-    minBtn:SetPoint("RIGHT", gearBtn, "LEFT", -4, 0)
-    minBtn:SetBackdrop(MakeBackdrop())
-    minBtn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
-    minBtn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
-    local minLbl = minBtn:CreateFontString(nil, "OVERLAY")
-    minLbl:SetFont(FONT_HEADERS, 12, "OUTLINE")
-    minLbl:SetPoint("CENTER", minBtn, "CENTER", 0, 1)
-    minLbl:SetTextColor(0.25, 0.80, 0.68)
-    local function UpdateMinBtn() minLbl:SetText(gatheringMinimized and "+" or "-") end
-    UpdateMinBtn()
-    minBtn:SetScript("OnClick", function()
+    local function UpdateMinBtn() return gatheringMinimized and "+" or "-" end
+    local minBtn = HeaderToggleButton(titleBar, UpdateMinBtn, L["UI_Collapse"], function()
         gatheringMinimized = not gatheringMinimized
         minimized = gatheringMinimized
         if MR.db then MR.db.profile.gatheringMinimized = gatheringMinimized end
-        UpdateMinBtn()
+        if minBtn.RefreshLabel then minBtn:RefreshLabel() end
         if gatheringMinimized then
             if frame._scroll then frame._scroll:Hide() end
             if frame._scrollTrack then frame._scrollTrack:Hide() end
@@ -622,6 +607,9 @@ local function BuildGatheringLocationsFrame(isRetry)
             frame.UpdateScrollBar()
         end
     end)
+    minBtn:SetPoint("RIGHT", closeBtn, "LEFT", -3, 0)
+    gearBtn:SetPoint("RIGHT", minBtn, "LEFT", -3, 0)
+    titleTxt:SetPoint("RIGHT", minBtn, "LEFT", -6, 0)
 
     local yOff = 0
     local fontSize = db.gatheringFontSize or 9
@@ -817,6 +805,7 @@ local function BuildGatheringLocationsFrame(isRetry)
 end
 
 RebuildGatheringLocationsFrame = function()
+    RefreshFonts()
     local wasShown = gatheringLocationsFrame and gatheringLocationsFrame:IsShown()
     if gatheringLocationsFrame then gatheringLocationsFrame:Hide() end
     gatheringLocationsFrame = BuildGatheringLocationsFrame()
@@ -842,6 +831,7 @@ local function BuildGatheringConfigFrame()
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
     frame:SetBackdrop(MakeBackdrop())
+    if ns.HookBackdropFrame then ns.HookBackdropFrame(frame) end
     frame:SetBackdropColor(0.03, 0.05, 0.02, 0.98)
     frame:SetBackdropBorderColor(0.50, 0.40, 0.16, 1)
     frame:Hide()
@@ -861,6 +851,7 @@ local function BuildGatheringConfigFrame()
 end
 
 PopulateGatheringConfig = function(frame)
+    RefreshFonts()
     if frame.body then
         frame.body:EnableMouse(false)
         frame.body:Hide()

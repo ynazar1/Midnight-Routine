@@ -22,6 +22,8 @@ local DEFAULTS = {
         width           = 260,
         height          = 400,
         fontSize        = 11,
+        fontMedia       = nil,
+        backgroundMedia = nil,
         minimap         = { hide = false },
         firstSeen       = false,
         position        = { point = "CENTER", x = 0, y = 0 },
@@ -94,6 +96,7 @@ local DEFAULTS = {
         moduleOrder  = {},
         settingsMigrated = false,
         windowLayout = {},
+        mediaSettings = {},
     },
 }
 
@@ -243,6 +246,7 @@ function MR:GetWeeklyRewardActivityBuckets()
         elseif activity.type == 6 then
             table.insert(buckets.world, activity)
         elseif activity.type == 4 and #buckets.world == 0 then
+            -- Fallback for older clients/builds where delves/world vault data used type 4.
             table.insert(buckets.world, activity)
         end
     end
@@ -779,6 +783,41 @@ function MR:ResetHeaderColor(modKey)
     self:RefreshUI()
 end
 
+function MR:GetActiveMediaSettings()
+    if not (self and self.db) then
+        return {}
+    end
+
+    if self:IsCharacterWindowLayoutEnabled() then
+        self.db.char.mediaSettings = self.db.char.mediaSettings or {}
+        return self.db.char.mediaSettings
+    end
+
+    return self.db.profile
+end
+
+function MR:GetMediaSetting(key)
+    if not (self and self.db and key) then
+        return nil
+    end
+
+    local active = self:GetActiveMediaSettings()
+    if active[key] ~= nil then
+        return active[key]
+    end
+
+    return self.db.profile[key]
+end
+
+function MR:SetMediaSetting(key, value)
+    if not (self and self.db and key) then
+        return
+    end
+
+    local active = self:GetActiveMediaSettings()
+    active[key] = value
+end
+
 function MR:IsCursorWithinBounds(target)
     if not target or not target.IsShown or not target:IsShown() then
         return false
@@ -1280,6 +1319,9 @@ end
 function MR:OnInitialize()
     self.db = AceDB:New("MidnightRoutineDB", DEFAULTS, true)
     self:MigrateLegacySettings()
+    if ns.ApplySharedMedia then
+        ns.ApplySharedMedia(self.GetActiveMediaSettings and self:GetActiveMediaSettings() or self.db.profile)
+    end
 end
 
 function MR:MigrateLegacySettings()

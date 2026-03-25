@@ -9,6 +9,8 @@ local TopAccent = ns.TopAccent
 local LeftAccent = ns.LeftAccent
 local TitleBar = ns.TitleBar
 local CloseButton = ns.CloseButton
+local HeaderIconButton = ns.HeaderIconButton
+local HeaderToggleButton = ns.HeaderToggleButton
 local MakeBackdrop = ns.MakeBackdrop
 local Hex = ns.Hex
 local OptionsGap = ns.OptionsGap
@@ -27,6 +29,16 @@ local RefreshRenownFrame
 local RebuildRenownFrame
 local SaveFactionOrder
 local PopulateRenownConfig
+
+local function RefreshFonts()
+    if ns.EnsureFonts then
+        FONT_HEADERS, FONT_ROWS = ns.EnsureFonts()
+        return
+    end
+
+    FONT_HEADERS = ns.FONT_HEADERS or FONT_HEADERS
+    FONT_ROWS = ns.FONT_ROWS or FONT_ROWS
+end
 
 local BASE_FACTIONS = {
     {
@@ -224,6 +236,7 @@ end
 local renownFrame
 
 local function BuildRenownFrame()
+    RefreshFonts()
     local db        = MR.db and MR.db.profile or {}
     local compact   = db.renownCompact
     local showLevel = db.renownShowLevel ~= false
@@ -277,59 +290,24 @@ local function BuildRenownFrame()
         if MR.db then MR.db.profile.renownOpen = false end
     end)
 
-    local gearBtn = CreateFrame("Button", nil, titleBar)
-    gearBtn:SetSize(18, 18)
-    gearBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0)
-    local gearTex = gearBtn:CreateTexture(nil, "ARTWORK")
-    gearTex:SetAllPoints(gearBtn)
-    gearTex:SetTexture("Interface\\Buttons\\UI-OptionsButton")
-    gearTex:SetVertexColor(0.85, 0.65, 0.10, 1)
-    gearBtn:SetNormalTexture(gearTex)
-    local gearTexHL = gearBtn:CreateTexture(nil, "HIGHLIGHT")
-    gearTexHL:SetAllPoints(gearBtn)
-    gearTexHL:SetTexture("Interface\\Buttons\\UI-OptionsButton")
-    gearTexHL:SetVertexColor(1, 1, 1, 1)
-    gearBtn:SetHighlightTexture(gearTexHL)
-    gearBtn:SetScript("OnClick", function() MR:ToggleRenownConfig() end)
-    gearBtn:SetScript("OnEnter", function()
-        gearTex:SetVertexColor(1, 0.9, 0.4, 1)
-        GameTooltip:SetOwner(gearBtn, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(L["Renown_OptionsTitle"], 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    gearBtn:SetScript("OnLeave", function()
-        gearTex:SetVertexColor(0.85, 0.65, 0.10, 1)
-        GameTooltip:Hide()
-    end)
+    local gearBtn = HeaderIconButton(
+        titleBar,
+        "Interface\\Buttons\\UI-OptionsButton",
+        {0.85, 0.65, 0.20},
+        {1, 1, 1},
+        L["Renown_OptionsTitle"],
+        function() MR:ToggleRenownConfig() end
+    )
 
-    local minBtn = CreateFrame("Button", nil, titleBar, "BackdropTemplate")
-    minBtn:SetSize(16, 16)
-    minBtn:SetPoint("RIGHT", gearBtn, "LEFT", -4, 0)
-    minBtn:SetBackdrop(MakeBackdrop())
-    minBtn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
-    minBtn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
-    local minLbl = minBtn:CreateFontString(nil, "OVERLAY")
-    minLbl:SetFont(FONT_HEADERS, 12, "OUTLINE")
-    minLbl:SetPoint("CENTER", minBtn, "CENTER", 0, 1)
-    minLbl:SetTextColor(0.25, 0.80, 0.68)
     local function UpdateMinBtn()
-        minLbl:SetText((MR.db and MR.db.profile.renownMinimized) and "+" or "-")
+        return (MR.db and MR.db.profile.renownMinimized) and "+" or "-"
     end
-    UpdateMinBtn()
-    minBtn:SetScript("OnEnter", function()
-        minBtn:SetBackdropColor(0.06, 0.22, 0.28, 1)
-        minBtn:SetBackdropBorderColor(0.20, 0.80, 0.65, 1)
-        minLbl:SetTextColor(1, 1, 1)
-        GameTooltip:SetOwner(minBtn, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(L["UI_Collapse"], 1, 1, 1)
-        GameTooltip:Show()
+    local minBtn = HeaderToggleButton(titleBar, UpdateMinBtn, L["UI_Collapse"], function()
+        local isMin = not (MR.db and MR.db.profile.renownMinimized)
+        ApplyMinimized(isMin)
     end)
-    minBtn:SetScript("OnLeave", function()
-        minBtn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
-        minBtn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
-        minLbl:SetTextColor(0.25, 0.80, 0.68)
-        GameTooltip:Hide()
-    end)
+    minBtn:SetPoint("RIGHT", closeBtn, "LEFT", -3, 0)
+    gearBtn:SetPoint("RIGHT", minBtn, "LEFT", -3, 0)
     titleTxt:SetPoint("RIGHT", minBtn, "LEFT", -6, 0)
     titleTxt:SetJustifyH("LEFT")
     titleTxt:SetWordWrap(false)
@@ -492,7 +470,7 @@ local function BuildRenownFrame()
 
     local function ApplyMinimized(isMin)
         if MR.db then MR.db.profile.renownMinimized = isMin end
-        UpdateMinBtn()
+        if minBtn.RefreshLabel then minBtn:RefreshLabel() end
 
         for _, row in pairs(f.factionRows) do
             if row.rowFrame then
@@ -529,11 +507,6 @@ local function BuildRenownFrame()
         end
     end
     f.ApplyMinimized = ApplyMinimized
-
-    minBtn:SetScript("OnClick", function()
-        local isMin = not (MR.db and MR.db.profile.renownMinimized)
-        ApplyMinimized(isMin)
-    end)
 
     if minimized then
         ApplyMinimized(true)
@@ -627,6 +600,7 @@ local function BuildRenownConfigFrame()
     f:SetClampedToScreen(true)
     f:SetMovable(true)
     f:SetBackdrop(MakeBackdrop())
+    if ns.HookBackdropFrame then ns.HookBackdropFrame(f) end
     f:SetBackdropColor(0.03, 0.04, 0.10, 0.98)
     f:SetBackdropBorderColor(0.55, 0.42, 0.08, 1)
     f:Hide()
@@ -676,6 +650,7 @@ SaveFactionOrder = function(ordered)
 end
 
 RebuildRenownFrame = function()
+    RefreshFonts()
     local wasShown = renownFrame and renownFrame:IsShown()
     if renownFrame then
         renownFrame:Hide()
@@ -712,6 +687,7 @@ ResetFactionColor = function(faction)
 end
 
 PopulateRenownConfig = function(f)
+    RefreshFonts()
     if f.body then
         f.body:EnableMouse(false)
         f.body:Hide()
@@ -828,7 +804,7 @@ PopulateRenownConfig = function(f)
     local dragGhost = CreateFrame("Frame", nil, body, "BackdropTemplate")
     dragGhost:SetHeight(20)
     dragGhost:SetFrameStrata("DIALOG")
-    dragGhost:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    dragGhost:SetBackdrop(MakeBackdrop())
     dragGhost:SetBackdropColor(0.10, 0.08, 0.02, 0.95)
     dragGhost:SetBackdropBorderColor(0.9, 0.72, 0.1, 1)
     dragGhost:Hide()

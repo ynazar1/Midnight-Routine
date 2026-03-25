@@ -1,4 +1,11 @@
 local _, ns = ...
+local LSM = LibStub and LibStub:GetLibrary("LibSharedMedia-3.0", true)
+ns.MEDIA_DEFAULT_TOKEN = "__MIDNIGHT_DEFAULT__"
+
+local MEDIA_KIND_TO_LSM = {
+    font = LSM and LSM.MediaType.FONT or "font",
+    background = LSM and LSM.MediaType.BACKGROUND or "background",
+}
 
 local function ResolveDefaultFont()
     if type(STANDARD_TEXT_FONT) == "string" and STANDARD_TEXT_FONT ~= "" then
@@ -15,8 +22,116 @@ local function ResolveDefaultFont()
     return "Fonts\\FRIZQT__.TTF"
 end
 
-function ns.EnsureFonts()
+function ns.GetDefaultFontTexture()
+    return ResolveDefaultFont()
+end
+
+local function ResolveDefaultBackground()
+    return "Interface\\Buttons\\WHITE8X8"
+end
+
+function ns.GetDefaultBackgroundTexture()
+    return ResolveDefaultBackground()
+end
+
+local function FetchSharedMedia(kind, name, fallback)
+    if not LSM or type(name) ~= "string" or name == "" then
+        return fallback
+    end
+
+    local mediaType = MEDIA_KIND_TO_LSM[kind]
+    local path = mediaType and LSM:Fetch(mediaType, name, true)
+    if type(path) == "string" then
+        return path
+    end
+
+    return fallback
+end
+
+local function ResolveMediaPath(kind, name, explicitPath, fallback)
+    if name == ns.MEDIA_DEFAULT_TOKEN then
+        return explicitPath or fallback
+    end
+
+    if type(explicitPath) == "string" and explicitPath ~= "" then
+        return explicitPath
+    end
+
+    return FetchSharedMedia(kind, name, fallback)
+end
+
+local function HasCustomBackground(profile)
+    return type(profile) == "table"
+        and type(profile.backgroundMedia) == "string"
+        and profile.backgroundMedia ~= ""
+        and profile.backgroundMedia ~= ns.MEDIA_DEFAULT_TOKEN
+end
+
+function ns.GetSharedMedia()
+    return LSM
+end
+
+function ns.GetSharedMediaList(kind)
+    if not LSM then
+        return {}
+    end
+
+    local mediaType = MEDIA_KIND_TO_LSM[kind]
+    if not mediaType then
+        return {}
+    end
+
+    return LSM:List(mediaType) or {}
+end
+
+local function GetActiveMediaProfile()
+    local addon = ns.MR
+    if addon and addon.GetActiveMediaSettings then
+        return addon:GetActiveMediaSettings()
+    end
+
+    return (addon and addon.db and addon.db.profile) or {}
+end
+
+local function GetResolvedMediaSetting(key)
+    local addon = ns.MR
+    if addon and addon.GetMediaSetting then
+        return addon:GetMediaSetting(key)
+    end
+
+    local profile = GetActiveMediaProfile()
+    return profile and profile[key]
+end
+
+function ns.ApplySharedMedia(profile)
+    profile = profile or GetActiveMediaProfile()
+
     local defaultFont = ResolveDefaultFont()
+    local defaultBackground = ResolveDefaultBackground()
+    local sharedFont = (profile and profile.fontMedia) or GetResolvedMediaSetting("fontMedia")
+        or (profile and profile.rowFontMedia) or GetResolvedMediaSetting("rowFontMedia")
+        or (profile and profile.headerFontMedia) or GetResolvedMediaSetting("headerFontMedia")
+    local backgroundMedia = (profile and profile.backgroundMedia) or GetResolvedMediaSetting("backgroundMedia")
+    local fontPath = (profile and profile.fontMediaPath) or GetResolvedMediaSetting("fontMediaPath")
+    local backgroundPath = (profile and profile.backgroundMediaPath) or GetResolvedMediaSetting("backgroundMediaPath")
+
+    ns.FONT_HEADERS = ResolveMediaPath("font", sharedFont, fontPath, defaultFont)
+    ns.FONT_ROWS = ResolveMediaPath("font", sharedFont, fontPath, defaultFont)
+    ns.BACKDROP_FILE = ResolveMediaPath("background", backgroundMedia, backgroundPath, defaultBackground)
+
+    return ns.FONT_HEADERS, ns.FONT_ROWS, ns.BACKDROP_FILE
+end
+
+function ns.EnsureFonts()
+    local profile = GetActiveMediaProfile()
+    local defaultFont = ResolveDefaultFont()
+    local sharedFont = (profile and profile.fontMedia) or GetResolvedMediaSetting("fontMedia")
+        or (profile and profile.rowFontMedia) or GetResolvedMediaSetting("rowFontMedia")
+        or (profile and profile.headerFontMedia) or GetResolvedMediaSetting("headerFontMedia")
+    local fontPath = (profile and profile.fontMediaPath) or GetResolvedMediaSetting("fontMediaPath")
+
+    ns.FONT_HEADERS = ResolveMediaPath("font", sharedFont, fontPath, defaultFont)
+    ns.FONT_ROWS = ResolveMediaPath("font", sharedFont, fontPath, defaultFont)
 
     if type(ns.FONT_HEADERS) ~= "string" or ns.FONT_HEADERS == "" then
         ns.FONT_HEADERS = defaultFont
@@ -30,7 +145,80 @@ function ns.EnsureFonts()
 end
 
 ns.EnsureFonts()
-ns.BACKDROP_FILE = "Interface\\Buttons\\WHITE8X8"
+if type(ns.BACKDROP_FILE) ~= "string" then
+    ns.BACKDROP_FILE = ResolveDefaultBackground()
+end
+
+function ns.ApplyBackgroundTexture(texture, r, g, b, a)
+    if not texture then
+        return
+    end
+
+    local bgFile = ns.BACKDROP_FILE
+    if type(bgFile) == "string" and bgFile ~= "" then
+        texture:SetTexture(bgFile)
+        local profile = GetActiveMediaProfile()
+        if HasCustomBackground(profile) then
+            texture:SetVertexColor(1, 1, 1, a or 1)
+        else
+            texture:SetVertexColor(r or 1, g or 1, b or 1, a or 1)
+        end
+        return
+    end
+
+    texture:SetTexture(nil)
+end
+
+local function EnsureFrameBackgroundTexture(frame)
+    if not frame or frame._mrBackgroundTexture then
+        return frame and frame._mrBackgroundTexture
+    end
+
+    local texture = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
+    texture:SetAllPoints()
+    frame._mrBackgroundTexture = texture
+    return texture
+end
+
+function ns.RefreshFrameBackground(frame)
+    if not frame then
+        return
+    end
+
+    local color = frame._mrBackgroundColor
+    if not color then
+        return
+    end
+
+    local texture = EnsureFrameBackgroundTexture(frame)
+    ns.ApplyBackgroundTexture(texture, color[1], color[2], color[3], color[4])
+end
+
+local function HookFrameBackdrop(frame)
+    if not frame or frame._mrBackdropHooked or type(frame.SetBackdropColor) ~= "function" then
+        return
+    end
+
+    frame._mrBackdropHooked = true
+    local originalSetBackdropColor = frame.SetBackdropColor
+    frame.SetBackdropColor = function(self, r, g, b, a)
+        local profile = GetActiveMediaProfile()
+        if HasCustomBackground(profile) then
+            originalSetBackdropColor(self, 1, 1, 1, a)
+        else
+            originalSetBackdropColor(self, r, g, b, a)
+        end
+        self._mrBackgroundColor = { r or 1, g or 1, b or 1, a or 1 }
+        ns.RefreshFrameBackground(self)
+    end
+end
+
+function ns.HookBackdropFrame(frame)
+    HookFrameBackdrop(frame)
+    if frame and frame._mrBackgroundColor then
+        ns.RefreshFrameBackground(frame)
+    end
+end
 
 ns.COLORS = {
     complete = { 0, 1, 0.59 },
@@ -103,15 +291,19 @@ function ns.GetFontSize()
 end
 
 function ns.MakeBackdrop(edge)
-    if edge == false then
-        return { bgFile = ns.BACKDROP_FILE }
+    local backdrop = {}
+
+    if type(ns.BACKDROP_FILE) == "string" and ns.BACKDROP_FILE ~= "" then
+        backdrop.bgFile = ns.BACKDROP_FILE
     end
 
-    return {
-        bgFile = ns.BACKDROP_FILE,
-        edgeFile = ns.BACKDROP_FILE,
-        edgeSize = 1,
-    }
+    if edge == false then
+        return backdrop
+    end
+
+    backdrop.edgeFile = ResolveDefaultBackground()
+    backdrop.edgeSize = 1
+    return backdrop
 end
 
 function ns.StyledFrame(parent, name, strata, level)
@@ -121,6 +313,7 @@ function ns.StyledFrame(parent, name, strata, level)
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
     frame:SetBackdrop(ns.MakeBackdrop())
+    HookFrameBackdrop(frame)
     frame:SetBackdropColor(COLORS.bg[1], COLORS.bg[2], COLORS.bg[3], COLORS.bg[4])
     frame:SetBackdropBorderColor(COLORS.border[1], COLORS.border[2], COLORS.border[3], 1)
     return frame
@@ -153,6 +346,7 @@ function ns.TitleBar(parent, height)
     bar:SetPoint("TOPRIGHT")
     bar:SetHeight(height)
     bar:SetBackdrop(ns.MakeBackdrop(false))
+    HookFrameBackdrop(bar)
     bar:SetBackdropColor(COLORS.titlebar[1], COLORS.titlebar[2], COLORS.titlebar[3], 1)
     bar:EnableMouse(true)
     bar:RegisterForDrag("LeftButton")
@@ -188,6 +382,89 @@ function ns.CloseButton(parent, onClose)
         btn:SetScript("OnClick", onClose)
     end
 
+    return btn
+end
+
+function ns.HeaderIconButton(parent, texturePath, tintColor, hoverTintColor, tooltipText, onClick)
+    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    btn:SetSize(16, 16)
+    btn:SetBackdrop(ns.MakeBackdrop())
+    btn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
+    btn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
+
+    local tex = btn:CreateTexture(nil, "OVERLAY")
+    tex:SetSize(14, 14)
+    tex:SetPoint("CENTER")
+    tex:SetTexture(texturePath)
+    tex:SetVertexColor((tintColor and tintColor[1]) or 1, (tintColor and tintColor[2]) or 1, (tintColor and tintColor[3]) or 1)
+
+    btn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(0.08, 0.22, 0.32, 1)
+        self:SetBackdropBorderColor(0.25, 0.85, 0.72, 1)
+        tex:SetVertexColor((hoverTintColor and hoverTintColor[1]) or 1, (hoverTintColor and hoverTintColor[2]) or 1, (hoverTintColor and hoverTintColor[3]) or 1)
+        if tooltipText then
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+            GameTooltip:SetText(tooltipText, 1, 1, 1)
+            GameTooltip:Show()
+        end
+    end)
+    btn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
+        self:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
+        tex:SetVertexColor((tintColor and tintColor[1]) or 1, (tintColor and tintColor[2]) or 1, (tintColor and tintColor[3]) or 1)
+        GameTooltip:Hide()
+    end)
+
+    if onClick then
+        btn:SetScript("OnClick", onClick)
+    end
+
+    btn._iconTex = tex
+    return btn
+end
+
+function ns.HeaderToggleButton(parent, getLabel, tooltipText, onClick)
+    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    btn:SetSize(16, 16)
+    btn:SetBackdrop(ns.MakeBackdrop())
+    btn:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
+    btn:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
+
+    local lbl = btn:CreateFontString(nil, "OVERLAY")
+    lbl:SetFont(ns.FONT_HEADERS, 12, "OUTLINE")
+    lbl:SetPoint("CENTER", btn, "CENTER", 0, 1)
+    lbl:SetTextColor(0.25, 0.80, 0.68)
+
+    local function RefreshLabel()
+        lbl:SetText(type(getLabel) == "function" and getLabel() or tostring(getLabel or "-"))
+    end
+
+    btn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(0.08, 0.22, 0.32, 1)
+        self:SetBackdropBorderColor(0.25, 0.85, 0.72, 1)
+        lbl:SetTextColor(1, 1, 1)
+        if tooltipText then
+            GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+            GameTooltip:SetText(tooltipText, 1, 1, 1)
+            GameTooltip:Show()
+        end
+    end)
+    btn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(0.06, 0.12, 0.22, 0.85)
+        self:SetBackdropBorderColor(0.15, 0.35, 0.40, 0.9)
+        lbl:SetTextColor(0.25, 0.80, 0.68)
+        GameTooltip:Hide()
+    end)
+    btn:SetScript("OnClick", function(...)
+        if onClick then
+            onClick(...)
+        end
+        RefreshLabel()
+    end)
+
+    RefreshLabel()
+    btn._label = lbl
+    btn.RefreshLabel = RefreshLabel
     return btn
 end
 
@@ -386,9 +663,26 @@ end
 function ns.OptionsColorSwatch(parent, r, g, b, onPick, onReset, tooltip)
     local swatch = CreateFrame("Button", nil, parent, "BackdropTemplate")
     swatch:SetSize(16, 16)
-    swatch:SetBackdrop(ns.MakeBackdrop())
-    swatch:SetBackdropColor(r, g, b, 1)
+    swatch:SetBackdrop({
+        bgFile = ResolveDefaultBackground(),
+        edgeFile = ResolveDefaultBackground(),
+        edgeSize = 1,
+    })
+    swatch:SetBackdropColor(0.02, 0.02, 0.02, 1)
     swatch:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+
+    local fill = swatch:CreateTexture(nil, "ARTWORK")
+    fill:SetPoint("TOPLEFT", swatch, "TOPLEFT", 2, -2)
+    fill:SetPoint("BOTTOMRIGHT", swatch, "BOTTOMRIGHT", -2, 2)
+    fill:SetColorTexture(r, g, b, 1)
+    swatch._fill = fill
+
+    local function UpdateFill()
+        if swatch._fill then
+            swatch._fill:SetColorTexture(r, g, b, 1)
+        end
+    end
+
     swatch:SetScript("OnClick", function(_, button)
         if button == "LeftButton" then
             ColorPickerFrame:SetupColorPickerAndShow({
@@ -397,14 +691,14 @@ function ns.OptionsColorSwatch(parent, r, g, b, onPick, onReset, tooltip)
                 swatchFunc = function()
                     local nr, ng, nb = ColorPickerFrame:GetColorRGB()
                     r, g, b = nr, ng, nb
-                    swatch:SetBackdropColor(r, g, b, 1)
+                    UpdateFill()
                     if onPick then
                         onPick(r, g, b)
                     end
                 end,
                 cancelFunc = function(prev)
                     r, g, b = prev.r, prev.g, prev.b
-                    swatch:SetBackdropColor(r, g, b, 1)
+                    UpdateFill()
                     if onPick then
                         onPick(r, g, b)
                     end
@@ -412,7 +706,7 @@ function ns.OptionsColorSwatch(parent, r, g, b, onPick, onReset, tooltip)
             })
         elseif button == "RightButton" and onReset then
             r, g, b = onReset()
-            swatch:SetBackdropColor(r, g, b, 1)
+            UpdateFill()
         end
     end)
     swatch:SetScript("OnEnter", function()
