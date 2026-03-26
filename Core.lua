@@ -433,7 +433,6 @@ function MR:GetWeeklyRewardActivityBuckets()
         elseif activity.type == 6 then
             table.insert(buckets.world, activity)
         elseif activity.type == 4 and #buckets.world == 0 then
-            -- Fallback for older clients/builds where delves/world vault data used type 4.
             table.insert(buckets.world, activity)
         end
     end
@@ -470,6 +469,15 @@ function MR:GetWarbandWeeklyData()
     local resetAt = self.GetLastResetTimestamp and self:GetLastResetTimestamp() or 0
     local hiddenChars = (self.db and self.db.profile and self.db.profile.altBoardHiddenCharacters) or {}
     local showHidden = self.db and self.db.profile and self.db.profile.altBoardShowHidden == true
+    local useCharacterLayout = self:IsCharacterWindowLayoutEnabled()
+    local sharedModuleStateBuckets = (not useCharacterLayout)
+        and type(self.db.profile.expansionModuleStates) == "table"
+        and self.db.profile.expansionModuleStates
+        or nil
+    local sharedModuleStates = sharedModuleStateBuckets and sharedModuleStateBuckets[selectedExpansion]
+        or ((not useCharacterLayout and selectedExpansion == "midnight" and type(self.db.profile.modules) == "table")
+            and self.db.profile.modules)
+        or {}
 
     for charKey, charData in pairs(self.db.sv.char) do
         if type(charData) == "table" and type(charData.progress) == "table" then
@@ -494,14 +502,19 @@ function MR:GetWarbandWeeklyData()
                 activeRows = 0,
             }
 
-            local charModuleStateBuckets = type(charData.expansionModuleStates) == "table" and charData.expansionModuleStates or nil
-            local charModuleStates = (charModuleStateBuckets and charModuleStateBuckets[selectedExpansion])
-                or ((selectedExpansion == "midnight") and type(charData.modules) == "table" and charData.modules)
-                or {}
+            local moduleStateBuckets = useCharacterLayout
+                and type(charData.expansionModuleStates) == "table"
+                and charData.expansionModuleStates
+                or nil
+            local moduleStates = useCharacterLayout
+                and ((moduleStateBuckets and moduleStateBuckets[selectedExpansion])
+                    or ((selectedExpansion == "midnight") and type(charData.modules) == "table" and charData.modules)
+                    or {})
+                or sharedModuleStates
 
             for _, mod in ipairs(self.modules) do
                 if IsAltBoardModule(mod) and self:GetModuleExpansionKey(mod) == selectedExpansion then
-                    local moduleSettings = type(charModuleStates) == "table" and charModuleStates[mod.key] or nil
+                    local moduleSettings = type(moduleStates) == "table" and moduleStates[mod.key] or nil
                     local moduleEnabled = not (moduleSettings and moduleSettings.enabled == false)
                     local moduleVisible = moduleEnabled and (not mod.isVisible or mod:isVisible())
                     local modProgress = charData.progress[mod.key] or {}
