@@ -883,7 +883,7 @@ end
 
 local function BuildRaresConfigFrame()
     local f = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-    f:SetWidth(224)
+    f:SetWidth(268)
     f:SetFrameStrata("HIGH")
     f:SetFrameLevel(20)
     f:SetClampedToScreen(true)
@@ -928,8 +928,15 @@ PopulateRaresConfig = function(f)
     local db   = MR.db.profile
     local yOff = -28
     local P    = 8
+    local contentW = (f:GetWidth() or 224) - (P * 2)
+    local activePage = MR._raresCfgPage or "display"
 
-    local cfgFs = MR.db.profile.syncWindowFontSize and (db.raresFontSize or 9) or 9
+    local cfgFs = (ns.GetFontSize and ns.GetFontSize()) or (MR.db and MR.db.profile and MR.db.profile.fontSize) or 9
+
+    if activePage ~= "display" and activePage ~= "zones" and activePage ~= "reset" then
+        activePage = "display"
+        MR._raresCfgPage = activePage
+    end
 
     local function Gap(h)      yOff = OptionsGap(body, yOff, h) end
     local function Divider()   yOff = OptionsDivider(body, yOff, P) end
@@ -942,172 +949,215 @@ PopulateRaresConfig = function(f)
     local function Slider(lbl, mn, mx, st, get, set, r, g, b, disabled)
         yOff = OptionsSlider(body, yOff, lbl, mn, mx, st, get, set, r, g, b, P, disabled, cfgFs)
     end
-    local function Btn(lbl, fn) yOff = OptionsBtn(body, yOff, lbl, fn, 184, P, cfgFs) end
-
-    SecLabel(L["Config_Display"])
-    Check(L["Config_LockPosition"],
-        function() return db.raresLocked end,
-        function(v)
-            db.raresLocked = v
-            if raresFrame then raresFrame:SetMovable(not v) end
-        end)
-    Check(L["Config_ShimmerAnim"],
-        function() return db.raresShimmer ~= false end,
-        function(v)
-            db.raresShimmer = v
-            if raresFrame then
-                if v then
-                    raresFrame:SetScript("OnUpdate", function(self, dt)
-                        self.shimmerElapsed = (self.shimmerElapsed or 0) + dt
-                        local pulse = 0.06 + 0.04 * math.sin(self.shimmerElapsed * 2)
-                        if self.shimmerTextures then
-                            for _, tex in ipairs(self.shimmerTextures) do tex:SetAlpha(pulse) end
-                        end
-                    end)
-                else
-                    raresFrame:SetScript("OnUpdate", nil)
-                    if raresFrame.shimmerTextures then
-                        for _, tex in ipairs(raresFrame.shimmerTextures) do tex:SetAlpha(0) end
-                    end
-                end
-            end
-        end)
-    Check(L["Config_HideKilled"],
-        function() return db.raresHideKilled end,
-        function(v) db.raresHideKilled = v; RebuildRaresFrame() end)
-
-    Gap(4); Divider()
-    Slider(L["WIDTH"], MIN_W, MAX_W, 10,
-        function() return db.raresWidth or DEFAULT_W end,
-        function(v)
-            db.raresWidth = math.floor(v / 10) * 10
-            RebuildRaresFrame()
-        end,
-        0.55, 0.28, 0.95)
-    Slider(L["HEIGHT"], MIN_H, MAX_H, 10,
-        function() return db.raresHeight or DEFAULT_H end,
-        function(v)
-            db.raresHeight = math.floor(v / 10) * 10
-            if raresFrame and not db.raresMinimized then
-                raresFrame:SetHeight(db.raresHeight)
-            end
-        end,
-        0.16, 0.75, 0.78)
-    local syncFs = MR.db.profile.syncWindowFontSize
-    Slider(L["Config_FontSize"], 7, 16, 1,
-        function() return db.raresFontSize or 9 end,
-        function(v) db.raresFontSize = math.floor(v); RebuildRaresFrame(); PopulateRaresConfig(f) end,
-        0.78, 0.55, 0.16, syncFs)
+    local function Btn(lbl, fn) yOff = OptionsBtn(body, yOff, lbl, fn, math.max(184, contentW), P, cfgFs) end
 
     do
-        local presets = { {"S", 8}, {"M", 9}, {"L", 11}, {"XL", 13} }
-        local btnW    = 42
-        for i, p in ipairs(presets) do
-            local isActive = (not syncFs) and ((db.raresFontSize or 9) == p[2])
-            local pb = CreateFrame("Button", nil, body, "BackdropTemplate")
-            pb:SetSize(btnW - 2, 16)
-            pb:SetPoint("TOPLEFT", body, "TOPLEFT", P + (i-1) * btnW, yOff - 2)
-            pb:SetBackdrop(MakeBackdrop())
-            pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, syncFs and 0.4 or 1)
-            pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, syncFs and 0.4 or 1)
-            local pfs = pb:CreateFontString(nil, "OVERLAY")
-            pfs:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
-            pfs:SetPoint("CENTER")
-            pfs:SetText(p[1])
-            pfs:SetTextColor(syncFs and 0.35 or (isActive and 0.2 or 0.6), syncFs and 0.35 or (isActive and 0.95 or 0.75), syncFs and 0.35 or (isActive and 0.75 or 0.65))
-            if not syncFs then
-                pb:SetScript("OnClick", function()
-                    db.raresFontSize = p[2]
-                    RebuildRaresFrame()
-                    PopulateRaresConfig(f)
-                end)
-                pb:SetScript("OnEnter", function() pb:SetBackdropColor(0.10, 0.28, 0.28, 1); pb:SetBackdropBorderColor(0.25, 0.90, 0.75, 1) end)
-                pb:SetScript("OnLeave", function()
-                    pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, 1)
-                    pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, 1)
-                end)
-            else
-                pb:EnableMouse(false)
-            end
+        local tabs = {
+            { key = "display", label = L["Config_TabLayout"] or "Layout" },
+            { key = "zones", label = L["Config_TabColors"] or "Colors" },
+            { key = "reset", label = L["Config_TabReset"] or "Reset" },
+        }
+        local tabW = math.floor((contentW - 4) / #tabs)
+        for i, tab in ipairs(tabs) do
+            local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
+            btn:SetSize(tabW, 18)
+            btn:SetPoint("TOPLEFT", body, "TOPLEFT", P + (i - 1) * (tabW + 2), yOff)
+            btn:SetBackdrop(MakeBackdrop())
+            local isActive = activePage == tab.key
+            btn:SetBackdropColor(isActive and 0.11 or 0.05, isActive and 0.24 or 0.09, isActive and 0.23 or 0.15, 1)
+            btn:SetBackdropBorderColor(isActive and 0.22 or 0.16, isActive and 0.82 or 0.28, isActive and 0.70 or 0.36, 1)
+
+            local lbl = btn:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+            lbl:SetPoint("CENTER")
+            lbl:SetText(tab.label)
+            lbl:SetTextColor(isActive and 0.85 or 0.62, isActive and 1.0 or 0.75, isActive and 0.92 or 0.70)
+
+            btn:SetScript("OnClick", function()
+                MR._raresCfgPage = tab.key
+                PopulateRaresConfig(f)
+            end)
+            btn:SetScript("OnEnter", function()
+                if activePage ~= tab.key then
+                    btn:SetBackdropColor(0.08, 0.18, 0.24, 1)
+                    btn:SetBackdropBorderColor(0.24, 0.74, 0.68, 1)
+                    lbl:SetTextColor(0.90, 0.98, 0.96)
+                end
+            end)
+            btn:SetScript("OnLeave", function()
+                local selected = (MR._raresCfgPage or "display") == tab.key
+                btn:SetBackdropColor(selected and 0.11 or 0.05, selected and 0.24 or 0.09, selected and 0.23 or 0.15, 1)
+                btn:SetBackdropBorderColor(selected and 0.22 or 0.16, selected and 0.82 or 0.28, selected and 0.70 or 0.36, 1)
+                lbl:SetTextColor(selected and 0.85 or 0.62, selected and 1.0 or 0.75, selected and 0.92 or 0.70)
+            end)
         end
-        yOff = yOff - 22
+        yOff = yOff - 26
     end
 
-    Slider(L["BACKGROUND"], 0, 1, 0.05,
-        function() return db.raresAlpha or 1.0 end,
-        function(v)
-            db.raresAlpha = v
-            if raresFrame then
-                raresFrame:SetBackdropColor(0.03, 0.02, 0.09, 0.97 * v)
-                raresFrame:SetBackdropBorderColor(0.18, 0.10, 0.30, v)
-                if raresFrame.leftAccent then raresFrame.leftAccent:SetAlpha(v) end
-                if raresFrame.topAccent  then raresFrame.topAccent:SetAlpha(v)  end
-                if raresFrame.zoneData then
-                    for _, zd in pairs(raresFrame.zoneData) do
-                        local zone = zd.zone
-                        local cr, cg, cb = GetZoneColor(zone)
-                        zd.barBg:SetBackdropColor(0.04, 0.04, 0.04, v)
-                        zd.body:SetBackdropColor(cr*0.04, cg*0.04, cb*0.04, 0.85 * v)
-                        zd.body:SetBackdropBorderColor(cr*0.20, cg*0.20, cb*0.20, 0.65 * v)
+    if activePage == "display" then
+        SecLabel(L["Config_Display"])
+        Check(L["Config_LockPosition"],
+            function() return db.raresLocked end,
+            function(v)
+                db.raresLocked = v
+                if raresFrame then raresFrame:SetMovable(not v) end
+            end)
+        Check(L["Config_ShimmerAnim"],
+            function() return db.raresShimmer ~= false end,
+            function(v)
+                db.raresShimmer = v
+                if raresFrame then
+                    if v then
+                        raresFrame:SetScript("OnUpdate", function(self, dt)
+                            self.shimmerElapsed = (self.shimmerElapsed or 0) + dt
+                            local pulse = 0.06 + 0.04 * math.sin(self.shimmerElapsed * 2)
+                            if self.shimmerTextures then
+                                for _, tex in ipairs(self.shimmerTextures) do tex:SetAlpha(pulse) end
+                            end
+                        end)
+                    else
+                        raresFrame:SetScript("OnUpdate", nil)
+                        if raresFrame.shimmerTextures then
+                            for _, tex in ipairs(raresFrame.shimmerTextures) do tex:SetAlpha(0) end
+                        end
                     end
                 end
+            end)
+        Check(L["Config_HideKilled"],
+            function() return db.raresHideKilled end,
+            function(v) db.raresHideKilled = v; RebuildRaresFrame() end)
+
+        Gap(4); Divider()
+        Slider(L["WIDTH"], MIN_W, MAX_W, 10,
+            function() return db.raresWidth or DEFAULT_W end,
+            function(v)
+                db.raresWidth = math.floor(v / 10) * 10
+                RebuildRaresFrame()
+            end,
+            0.55, 0.28, 0.95)
+        Slider(L["HEIGHT"], MIN_H, MAX_H, 10,
+            function() return db.raresHeight or DEFAULT_H end,
+            function(v)
+                db.raresHeight = math.floor(v / 10) * 10
+                if raresFrame and not db.raresMinimized then
+                    raresFrame:SetHeight(db.raresHeight)
+                end
+            end,
+            0.16, 0.75, 0.78)
+        local syncFs = MR.db.profile.syncWindowFontSize
+        Slider(L["Config_FontSize"], 7, 16, 1,
+            function() return db.raresFontSize or 9 end,
+            function(v) db.raresFontSize = math.floor(v); RebuildRaresFrame(); PopulateRaresConfig(f) end,
+            0.78, 0.55, 0.16, syncFs)
+
+        do
+            local presets = { {"S", 8}, {"M", 9}, {"L", 11}, {"XL", 13} }
+            local btnW = math.floor((contentW - 6) / #presets)
+            for i, p in ipairs(presets) do
+                local isActive = (not syncFs) and ((db.raresFontSize or 9) == p[2])
+                local pb = CreateFrame("Button", nil, body, "BackdropTemplate")
+                pb:SetSize(btnW, 16)
+                pb:SetPoint("TOPLEFT", body, "TOPLEFT", P + (i - 1) * (btnW + 2), yOff - 2)
+                pb:SetBackdrop(MakeBackdrop())
+                pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, syncFs and 0.4 or 1)
+                pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, syncFs and 0.4 or 1)
+                local pfs = pb:CreateFontString(nil, "OVERLAY")
+                pfs:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+                pfs:SetPoint("CENTER")
+                pfs:SetText(p[1])
+                pfs:SetTextColor(syncFs and 0.35 or (isActive and 0.2 or 0.6), syncFs and 0.35 or (isActive and 0.95 or 0.75), syncFs and 0.35 or (isActive and 0.75 or 0.65))
+                if not syncFs then
+                    pb:SetScript("OnClick", function()
+                        db.raresFontSize = p[2]
+                        RebuildRaresFrame()
+                        PopulateRaresConfig(f)
+                    end)
+                    pb:SetScript("OnEnter", function() pb:SetBackdropColor(0.10, 0.28, 0.28, 1); pb:SetBackdropBorderColor(0.25, 0.90, 0.75, 1) end)
+                    pb:SetScript("OnLeave", function()
+                        pb:SetBackdropColor(isActive and 0.12 or 0.05, isActive and 0.35 or 0.10, isActive and 0.32 or 0.18, 1)
+                        pb:SetBackdropBorderColor(isActive and 0.25 or 0.18, isActive and 0.85 or 0.40, isActive and 0.70 or 0.45, 1)
+                    end)
+                else
+                    pb:EnableMouse(false)
+                end
             end
-        end,
-        0.40, 0.40, 0.40)
-    Slider(L["SCALE"], 0.5, 2.0, 0.05,
-        function() return db.raresScale or 1.0 end,
-        function(v)
-            db.raresScale = v
-            if raresFrame then raresFrame:SetScale(v) end
-        end,
-        0.45, 0.22, 0.82, MR.db.profile.syncWindowScale)
+            yOff = yOff - 22
+        end
 
-    Gap(4); Divider()
-    SecLabel(L["Config_ZoneSettings"])
-
-    for _, zone in ipairs(ZONES) do
-        local cr, cg, cb = GetZoneColor(zone)
-        local ROW_H2 = 22
-        local rowFr  = CreateFrame("Frame", nil, body)
-        rowFr:SetPoint("TOPLEFT",  body, "TOPLEFT",  P,  yOff)
-        rowFr:SetPoint("TOPRIGHT", body, "TOPRIGHT", -P, yOff)
-        rowFr:SetHeight(ROW_H2)
-
-        local nameLbl
-        local swatch = OptionsColorSwatch(rowFr, cr, cg, cb,
-            function(r, g, b)
-                SetZoneColor(zone, r, g, b)
-                if nameLbl then nameLbl:SetTextColor(r, g, b) end
-                RebuildRaresFrame()
+        Slider(L["BACKGROUND"], 0, 1, 0.05,
+            function() return db.raresAlpha or 1.0 end,
+            function(v)
+                db.raresAlpha = v
+                if raresFrame then
+                    raresFrame:SetBackdropColor(0.03, 0.02, 0.09, 0.97 * v)
+                    raresFrame:SetBackdropBorderColor(0.18, 0.10, 0.30, v)
+                    if raresFrame.leftAccent then raresFrame.leftAccent:SetAlpha(v) end
+                    if raresFrame.topAccent  then raresFrame.topAccent:SetAlpha(v)  end
+                    if raresFrame.zoneData then
+                        for _, zd in pairs(raresFrame.zoneData) do
+                            local zone = zd.zone
+                            local cr, cg, cb = GetZoneColor(zone)
+                            zd.barBg:SetBackdropColor(0.04, 0.04, 0.04, v)
+                            zd.body:SetBackdropColor(cr*0.04, cg*0.04, cb*0.04, 0.85 * v)
+                            zd.body:SetBackdropBorderColor(cr*0.20, cg*0.20, cb*0.20, 0.65 * v)
+                        end
+                    end
+                end
             end,
-            function()
-                ResetZoneColor(zone)
-                local dr, dg, db2 = zone.color[1], zone.color[2], zone.color[3]
-                if nameLbl then nameLbl:SetTextColor(dr, dg, db2) end
-                RebuildRaresFrame()
-                return dr, dg, db2
+            0.40, 0.40, 0.40)
+        Slider(L["SCALE"], 0.5, 2.0, 0.05,
+            function() return db.raresScale or 1.0 end,
+            function(v)
+                db.raresScale = v
+                if raresFrame then raresFrame:SetScale(v) end
             end,
-            zone.label .. L["Color_Reset_Hint"])
-        swatch:SetPoint("RIGHT", rowFr, "RIGHT", 0, 0)
+            0.45, 0.22, 0.82, MR.db.profile.syncWindowScale)
+    elseif activePage == "zones" then
+        SecLabel(L["Config_ZoneSettings"])
 
-        nameLbl = rowFr:CreateFontString(nil, "OVERLAY")
-        nameLbl:SetFont(FONT_ROWS, 10, "OUTLINE")
-        nameLbl:SetPoint("LEFT",  rowFr,  "LEFT",  0,  0)
-        nameLbl:SetPoint("RIGHT", swatch, "LEFT", -4,  0)
-        nameLbl:SetText(zone.label)
-        nameLbl:SetTextColor(cr, cg, cb)
-        nameLbl:SetJustifyH("LEFT")
+        for _, zone in ipairs(ZONES) do
+            local cr, cg, cb = GetZoneColor(zone)
+            local ROW_H2 = 22
+            local rowFr  = CreateFrame("Frame", nil, body)
+            rowFr:SetPoint("TOPLEFT",  body, "TOPLEFT",  P,  yOff)
+            rowFr:SetPoint("TOPRIGHT", body, "TOPRIGHT", -P, yOff)
+            rowFr:SetHeight(ROW_H2)
 
-        yOff = yOff - (ROW_H2 + 2)
+            local nameLbl
+            local swatch = OptionsColorSwatch(rowFr, cr, cg, cb,
+                function(r, g, b)
+                    SetZoneColor(zone, r, g, b)
+                    if nameLbl then nameLbl:SetTextColor(r, g, b) end
+                    RebuildRaresFrame()
+                end,
+                function()
+                    ResetZoneColor(zone)
+                    local dr, dg, db2 = zone.color[1], zone.color[2], zone.color[3]
+                    if nameLbl then nameLbl:SetTextColor(dr, dg, db2) end
+                    RebuildRaresFrame()
+                    return dr, dg, db2
+                end,
+                zone.label .. L["Color_Reset_Hint"])
+            swatch:SetPoint("RIGHT", rowFr, "RIGHT", 0, 0)
+
+            nameLbl = rowFr:CreateFontString(nil, "OVERLAY")
+            nameLbl:SetFont(FONT_ROWS, 10, "OUTLINE")
+            nameLbl:SetPoint("LEFT",  rowFr,  "LEFT",  0,  0)
+            nameLbl:SetPoint("RIGHT", swatch, "LEFT", -4,  0)
+            nameLbl:SetText(zone.label)
+            nameLbl:SetTextColor(cr, cg, cb)
+            nameLbl:SetJustifyH("LEFT")
+
+            yOff = yOff - (ROW_H2 + 2)
+        end
+    else
+        SecLabel(L["RESETS"])
+        Btn(L["Config_ResetColors"], function()
+            db.raresColors = {}
+            RebuildRaresFrame()
+            PopulateRaresConfig(f)
+        end)
     end
-
-    Gap(4); Divider()
-    SecLabel(L["RESETS"])
-    Btn(L["Config_ResetColors"], function()
-        db.raresColors = {}
-        RebuildRaresFrame()
-        PopulateRaresConfig(f)
-    end)
 
     local totalH = math.abs(yOff) + 10
     f:SetHeight(totalH)

@@ -615,7 +615,7 @@ local renownCfgFrame
 
 local function BuildRenownConfigFrame()
     local f = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-    f:SetWidth(230)
+    f:SetWidth(268)
     f:SetFrameStrata("HIGH")
     f:SetFrameLevel(20)
     f:SetClampedToScreen(true)
@@ -724,8 +724,15 @@ PopulateRenownConfig = function(f)
     local db  = MR.db.profile
     local yOff = -28
     local PAD  = 8
+    local contentW = (f:GetWidth() or 230) - (PAD * 2)
+    local activePage = MR._renownCfgPage or "display"
 
-    local cfgFs = MR.db.profile.syncWindowFontSize and (db.renownFontSize or 9) or 9
+    local cfgFs = (ns.GetFontSize and ns.GetFontSize()) or (MR.db and MR.db.profile and MR.db.profile.fontSize) or 9
+
+    if activePage ~= "display" and activePage ~= "factions" then
+        activePage = "display"
+        MR._renownCfgPage = activePage
+    end
 
     local function Gap(h)          yOff = OptionsGap(body, yOff, h) end
     local function Divider()       yOff = OptionsDivider(body, yOff, PAD) end
@@ -734,90 +741,134 @@ PopulateRenownConfig = function(f)
         yOff = OptionsCheckbox(body, yOff, lbl, get, set, r, g, b, PAD,
             function() PopulateRenownConfig(f) end, cfgFs)
     end
-    local function Btn(lbl, fn)    yOff = OptionsBtn(body, yOff, lbl, fn, 184, PAD, cfgFs) end
+    local function Btn(lbl, fn)    yOff = OptionsBtn(body, yOff, lbl, fn, math.max(184, contentW), PAD, cfgFs) end
     local function Slider(lbl, mn, mx, st, get, set, r, g, b, disabled)
         yOff = OptionsSlider(body, yOff, lbl, mn, mx, st, get, set, r, g, b, PAD, disabled, cfgFs)
     end
 
-    SecLabel(L["Config_Display"])
-    Check(L["Config_LockPosition"],
-        function() return db.renownLocked end,
-        function(v)
-            db.renownLocked = v
-            if renownFrame then renownFrame:SetMovable(not v) end
-        end)
-    Check(L["Config_ShowRepNumbers"],
-        function() return db.renownShowRep ~= false end,
-        function(v) db.renownShowRep = v; RefreshRenownFrame() end)
-    Check(L["Config_ShimmerAnim"],
-        function() return db.renownShimmer ~= false end,
-        function(v)
-            db.renownShimmer = v
-            if renownFrame then
-                renownFrame:SetScript("OnUpdate", v and function(self, dt)
-                    self.shimmerElapsed = (self.shimmerElapsed or 0) + dt
-                    local pulse = 0.06 + 0.04 * math.sin(self.shimmerElapsed * 2)
-                    for _, row in pairs(self.factionRows) do row.shimmer:SetAlpha(pulse) end
-                end or nil)
-                if not v then
-                    for _, row in pairs(renownFrame.factionRows) do row.shimmer:SetAlpha(0) end
-                end
-            end
-        end)
-    Check(L["Config_HideAtMax"],
-        function() return db.renownHideMaxed end,
-        function(v) db.renownHideMaxed = v; RefreshRenownFrame() end)
-    Check(L["Config_CompactMode"],
-        function() return db.renownCompact end,
-        function(v) db.renownCompact = v; RebuildRenownFrame() end)
-    Check(L["Config_ShowRenownLevel"],
-        function() return db.renownShowLevel ~= false end,
-        function(v) db.renownShowLevel = v; RefreshRenownFrame() end)
+    do
+        local tabs = {
+            { key = "display", label = L["Config_TabLayout"] or "Layout" },
+            { key = "factions", label = L["Config_TabModules"] or "Modules" },
+        }
+        local tabW = math.floor((contentW - 2) / #tabs)
+        for i, tab in ipairs(tabs) do
+            local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
+            btn:SetSize(tabW, 18)
+            btn:SetPoint("TOPLEFT", body, "TOPLEFT", PAD + (i - 1) * (tabW + 2), yOff)
+            btn:SetBackdrop(MakeBackdrop())
+            local isActive = activePage == tab.key
+            btn:SetBackdropColor(isActive and 0.11 or 0.05, isActive and 0.24 or 0.09, isActive and 0.23 or 0.15, 1)
+            btn:SetBackdropBorderColor(isActive and 0.22 or 0.16, isActive and 0.82 or 0.28, isActive and 0.70 or 0.36, 1)
 
-    Gap(4); Divider()
-    Slider(L["WIDTH"], 200, 400, 10,
-        function() return db.renownWidth or 280 end,
-        function(v)
-            db.renownWidth = math.floor(v/10)*10
-            if renownFrame then renownFrame:SetWidth(db.renownWidth) end
-        end,
-        0.16, 0.78, 0.75)
-    Slider(L["Config_BarHeight"], 10, 30, 1,
-        function() return db.renownBarH or 18 end,
-        function(v) db.renownBarH = math.floor(v); RebuildRenownFrame() end,
-        0.85, 0.65, 0.10)
-    Slider(L["BACKGROUND"], 0, 1, 0.05,
-        function() return db.renownAlpha or 1.0 end,
-        function(v)
-            db.renownAlpha = v
-            if renownFrame then
-                renownFrame:SetBackdropColor(0.02, 0.03, 0.08, 0.97 * v)
-                renownFrame:SetBackdropBorderColor(0.55, 0.42, 0.08, v)
-                if renownFrame.titleBar  then renownFrame.titleBar:SetBackdropColor(0.06, 0.05, 0.02, v) end
-                if renownFrame.leftAccent then renownFrame.leftAccent:SetAlpha(v) end
-                if renownFrame.topAccent  then renownFrame.topAccent:SetAlpha(v)  end
-                if renownFrame.divider    then renownFrame.divider:SetAlpha(v)    end
-                for _, row in pairs(renownFrame.factionRows) do
-                    local fac = row.faction
-                    local cr, cg, cb = GetFactionColor(fac)
-                    local rowV = db.renownCompact and 1.0 or v
-                    row.rowFrame:SetBackdropColor(cr*0.08, cg*0.08, cb*0.08, 0.85*rowV)
-                    row.rowFrame:SetBackdropBorderColor(cr*0.4, cg*0.4, cb*0.4, 0.8*rowV)
-                    row.barBg:SetBackdropColor(0.04, 0.04, 0.04, rowV)
-                end
-            end
-        end,
-        0.40, 0.40, 0.40)
-    Slider(L["SCALE"], 0.5, 2.0, 0.05,
-        function() return db.renownScale or 1.0 end,
-        function(v)
-            db.renownScale = v
-            if renownFrame then renownFrame:SetScale(v) end
-        end,
-        0.55, 0.22, 0.82, MR.db.profile.syncWindowScale)
+            local lbl = btn:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+            lbl:SetPoint("CENTER")
+            lbl:SetText(tab.label)
+            lbl:SetTextColor(isActive and 0.85 or 0.62, isActive and 1.0 or 0.75, isActive and 0.92 or 0.70)
 
-    Gap(4); Divider()
-    SecLabel(L["Config_FactionSettings"])
+            btn:SetScript("OnClick", function()
+                MR._renownCfgPage = tab.key
+                PopulateRenownConfig(f)
+            end)
+            btn:SetScript("OnEnter", function()
+                if activePage ~= tab.key then
+                    btn:SetBackdropColor(0.08, 0.18, 0.24, 1)
+                    btn:SetBackdropBorderColor(0.24, 0.74, 0.68, 1)
+                    lbl:SetTextColor(0.90, 0.98, 0.96)
+                end
+            end)
+            btn:SetScript("OnLeave", function()
+                local selected = (MR._renownCfgPage or "display") == tab.key
+                btn:SetBackdropColor(selected and 0.11 or 0.05, selected and 0.24 or 0.09, selected and 0.23 or 0.15, 1)
+                btn:SetBackdropBorderColor(selected and 0.22 or 0.16, selected and 0.82 or 0.28, selected and 0.70 or 0.36, 1)
+                lbl:SetTextColor(selected and 0.85 or 0.62, selected and 1.0 or 0.75, selected and 0.92 or 0.70)
+            end)
+        end
+        yOff = yOff - 26
+    end
+
+    f:SetScript("OnUpdate", nil)
+
+    if activePage == "display" then
+        SecLabel(L["Config_Display"])
+        Check(L["Config_LockPosition"],
+            function() return db.renownLocked end,
+            function(v)
+                db.renownLocked = v
+                if renownFrame then renownFrame:SetMovable(not v) end
+            end)
+        Check(L["Config_ShowRepNumbers"],
+            function() return db.renownShowRep ~= false end,
+            function(v) db.renownShowRep = v; RefreshRenownFrame() end)
+        Check(L["Config_ShimmerAnim"],
+            function() return db.renownShimmer ~= false end,
+            function(v)
+                db.renownShimmer = v
+                if renownFrame then
+                    renownFrame:SetScript("OnUpdate", v and function(self, dt)
+                        self.shimmerElapsed = (self.shimmerElapsed or 0) + dt
+                        local pulse = 0.06 + 0.04 * math.sin(self.shimmerElapsed * 2)
+                        for _, row in pairs(self.factionRows) do row.shimmer:SetAlpha(pulse) end
+                    end or nil)
+                    if not v then
+                        for _, row in pairs(renownFrame.factionRows) do row.shimmer:SetAlpha(0) end
+                    end
+                end
+            end)
+        Check(L["Config_HideAtMax"],
+            function() return db.renownHideMaxed end,
+            function(v) db.renownHideMaxed = v; RefreshRenownFrame() end)
+        Check(L["Config_CompactMode"],
+            function() return db.renownCompact end,
+            function(v) db.renownCompact = v; RebuildRenownFrame() end)
+        Check(L["Config_ShowRenownLevel"],
+            function() return db.renownShowLevel ~= false end,
+            function(v) db.renownShowLevel = v; RefreshRenownFrame() end)
+
+        Gap(4); Divider()
+        Slider(L["WIDTH"], 200, 400, 10,
+            function() return db.renownWidth or 280 end,
+            function(v)
+                db.renownWidth = math.floor(v/10)*10
+                if renownFrame then renownFrame:SetWidth(db.renownWidth) end
+            end,
+            0.16, 0.78, 0.75)
+        Slider(L["Config_BarHeight"], 10, 30, 1,
+            function() return db.renownBarH or 18 end,
+            function(v) db.renownBarH = math.floor(v); RebuildRenownFrame() end,
+            0.85, 0.65, 0.10)
+        Slider(L["BACKGROUND"], 0, 1, 0.05,
+            function() return db.renownAlpha or 1.0 end,
+            function(v)
+                db.renownAlpha = v
+                if renownFrame then
+                    renownFrame:SetBackdropColor(0.02, 0.03, 0.08, 0.97 * v)
+                    renownFrame:SetBackdropBorderColor(0.55, 0.42, 0.08, v)
+                    if renownFrame.titleBar  then renownFrame.titleBar:SetBackdropColor(0.06, 0.05, 0.02, v) end
+                    if renownFrame.leftAccent then renownFrame.leftAccent:SetAlpha(v) end
+                    if renownFrame.topAccent  then renownFrame.topAccent:SetAlpha(v)  end
+                    if renownFrame.divider    then renownFrame.divider:SetAlpha(v)    end
+                    for _, row in pairs(renownFrame.factionRows) do
+                        local fac = row.faction
+                        local cr, cg, cb = GetFactionColor(fac)
+                        local rowV = db.renownCompact and 1.0 or v
+                        row.rowFrame:SetBackdropColor(cr*0.08, cg*0.08, cb*0.08, 0.85*rowV)
+                        row.rowFrame:SetBackdropBorderColor(cr*0.4, cg*0.4, cb*0.4, 0.8*rowV)
+                        row.barBg:SetBackdropColor(0.04, 0.04, 0.04, rowV)
+                    end
+                end
+            end,
+            0.40, 0.40, 0.40)
+        Slider(L["SCALE"], 0.5, 2.0, 0.05,
+            function() return db.renownScale or 1.0 end,
+            function(v)
+                db.renownScale = v
+                if renownFrame then renownFrame:SetScale(v) end
+            end,
+            0.55, 0.22, 0.82, MR.db.profile.syncWindowScale)
+    else
+        SecLabel(L["Config_FactionSettings"])
 
     local drag = { active = false, srcKey = nil, targetIdx = nil }
     local _facRows = {}
@@ -1025,6 +1076,7 @@ PopulateRenownConfig = function(f)
         PopulateRenownConfig(f)
         RebuildRenownFrame()
     end)
+    end
 
     local totalH = math.abs(yOff) + 10
     f:SetHeight(totalH)

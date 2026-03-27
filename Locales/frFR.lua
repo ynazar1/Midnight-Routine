@@ -58,6 +58,7 @@ L["Config_AutoHidePanelHeaders"] = "Masquer automatiquement les en-têtes de pan
 L["Config_TabWindows"] = "Windows"
 L["Config_TabLayout"] = "Layout"
 L["Config_TabModules"] = "Modules"
+L["Config_TabColors"] = "Couleurs"
 L["Config_TabReset"] = "Reset"
 L["Config_LayoutMode"] = "Layout Mode"
 L["Config_LayoutShared"] = "Shared"

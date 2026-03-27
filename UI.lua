@@ -2757,7 +2757,7 @@ function MR:PopulateConfigFrame(f)
     f.body = body
 
     local yOff = -26
-    local cfgFs = MR.db.profile.syncWindowFontSize and GetFontSize() or 9
+    local cfgFs = GetFontSize()
     local contentW = (f:GetWidth() or 292) - 16
     local activePage = MR._cfgPage or "windows"
 

@@ -838,7 +838,7 @@ end
 
 local function BuildGatheringConfigFrame()
     local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-    frame:SetWidth(224)
+    frame:SetWidth(268)
     frame:SetFrameStrata("HIGH")
     frame:SetFrameLevel(20)
     frame:SetClampedToScreen(true)
@@ -847,6 +847,7 @@ local function BuildGatheringConfigFrame()
     if ns.HookBackdropFrame then ns.HookBackdropFrame(frame) end
     frame:SetBackdropColor(0.03, 0.05, 0.02, 0.98)
     frame:SetBackdropBorderColor(0.50, 0.40, 0.16, 1)
+    frame._configMinHeight = 250
     frame:Hide()
     TopAccent(frame, 0.80, 0.53, 0.20)
 
@@ -879,7 +880,15 @@ PopulateGatheringConfig = function(frame)
 
     local db = MR.db.profile
     local yOff, pad = -28, 8
-    local cfgFs = MR.db.profile.syncWindowFontSize and (db.gatheringFontSize or 9) or 9
+    local contentW = (frame:GetWidth() or 224) - (pad * 2)
+    local activePage = MR._gatheringCfgPage or "display"
+    local cfgFs = (ns.GetFontSize and ns.GetFontSize()) or (MR.db and MR.db.profile and MR.db.profile.fontSize) or 9
+
+    if activePage ~= "display" and activePage ~= "professions" and activePage ~= "reset" then
+        activePage = "display"
+        MR._gatheringCfgPage = activePage
+    end
+
     local function Gap(h) yOff = OptionsGap(body, yOff, h) end
     local function Divider() yOff = OptionsDivider(body, yOff, pad) end
     local function SecLabel(text) yOff = OptionsSectionLabel(body, yOff, text, pad, cfgFs) end
@@ -889,83 +898,132 @@ PopulateGatheringConfig = function(frame)
     local function Slider(label, mn, mx, st, getValue, setValue, r, g, b, disabled)
         yOff = OptionsSlider(body, yOff, label, mn, mx, st, getValue, setValue, r, g, b, pad, disabled, cfgFs)
     end
-    local function Btn(label, fn) yOff = OptionsBtn(body, yOff, label, fn, 184, pad, cfgFs) end
+    local function Btn(label, fn) yOff = OptionsBtn(body, yOff, label, fn, math.max(184, contentW), pad, cfgFs) end
 
-    SecLabel(L["Config_Display"])
-    Check(L["Config_LockPosition"], function() return db.gatheringLocked end, function(value)
-        db.gatheringLocked = value
-        if gatheringLocationsFrame then gatheringLocationsFrame:SetMovable(not value) end
-    end)
-    Check(L["Config_HideWhenCompleted"], function() return db.gatheringHideCompleted end, function(value)
-        db.gatheringHideCompleted = value
-        RebuildGatheringLocationsFrame()
-    end)
-    Slider(L["WIDTH"], MIN_W, MAX_W, 10, function() return db.gatheringWidth or DEFAULT_W end, function(value)
-        db.gatheringWidth = math.floor(value / 10) * 10
-        RebuildGatheringLocationsFrame()
-    end, 0.80, 0.53, 0.20)
-    Slider(L["HEIGHT"], MIN_H, MAX_H, 10, function() return db.gatheringHeight or DEFAULT_H end, function(value)
-        db.gatheringHeight = math.floor(value / 10) * 10
-        if gatheringLocationsFrame and not db.gatheringMinimized then gatheringLocationsFrame:SetHeight(db.gatheringHeight) end
-    end, 0.60, 0.80, 0.40)
-    local syncFs = MR.db.profile.syncWindowFontSize
-    Slider(L["Config_FontSize"], 7, 16, 1, function() return db.gatheringFontSize or 9 end, function(value)
-        db.gatheringFontSize = math.floor(value)
-        RebuildGatheringLocationsFrame()
-        PopulateGatheringConfig(frame)
-    end, 0.78, 0.55, 0.16, syncFs)
-    Slider(L["BACKGROUND"], 0, 1, 0.05, function() return db.gatheringAlpha or 1.0 end, function(value)
-        db.gatheringAlpha = math.floor(value * 20) / 20
-        if gatheringLocationsFrame then
-            gatheringLocationsFrame:SetBackdropColor(0.03, 0.05, 0.08, 0.97 * value)
-            gatheringLocationsFrame:SetBackdropBorderColor(0.22, 0.18, 0.28, value)
-            if gatheringLocationsFrame.leftAccent then gatheringLocationsFrame.leftAccent:SetAlpha(value) end
-            if gatheringLocationsFrame.topAccent then gatheringLocationsFrame.topAccent:SetAlpha(value) end
-        end
-    end, 0.40, 0.40, 0.40)
-    Slider(L["SCALE"], 0.5, 2.0, 0.05, function() return db.gatheringScale or 1.0 end, function(value)
-        db.gatheringScale = value
-        if gatheringLocationsFrame then gatheringLocationsFrame:SetScale(value) end
-    end, 0.45, 0.22, 0.82, MR.db.profile.syncWindowScale)
+    do
+        local tabs = {
+            { key = "display", label = L["Config_TabLayout"] or "Layout" },
+            { key = "professions", label = L["Config_TabColors"] or "Colors" },
+            { key = "reset", label = L["Config_TabReset"] or "Reset" },
+        }
+        local tabW = math.floor((contentW - 4) / #tabs)
+        for i, tab in ipairs(tabs) do
+            local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
+            btn:SetSize(tabW, 18)
+            btn:SetPoint("TOPLEFT", body, "TOPLEFT", pad + (i - 1) * (tabW + 2), yOff)
+            btn:SetBackdrop(MakeBackdrop())
+            local isActive = activePage == tab.key
+            btn:SetBackdropColor(isActive and 0.11 or 0.05, isActive and 0.24 or 0.09, isActive and 0.23 or 0.15, 1)
+            btn:SetBackdropBorderColor(isActive and 0.22 or 0.16, isActive and 0.82 or 0.28, isActive and 0.70 or 0.36, 1)
 
-    Gap(4); Divider(); SecLabel(L["Config_ProfessionColors"])
-    for _, profession in ipairs(PROFESSIONS) do
-        if HasProfessionLearned(profession.skillLine) then
-            local cr, cg, cb = GetProfessionColor(profession.key)
-            local row = CreateFrame("Frame", nil, body)
-            row:SetPoint("TOPLEFT", body, "TOPLEFT", pad, yOff)
-            row:SetPoint("TOPRIGHT", body, "TOPRIGHT", -pad, yOff)
-            row:SetHeight(22)
-            local nameLbl
-            local swatch = OptionsColorSwatch(row, cr, cg, cb, function(r, g, b)
-                SetProfessionColor(profession.key, r, g, b)
-                if nameLbl then nameLbl:SetTextColor(r, g, b) end
-            end, function()
-                ResetProfessionColor(profession.key)
-                local dr, dg, db2 = profession.color[1], profession.color[2], profession.color[3]
-                if nameLbl then nameLbl:SetTextColor(dr, dg, db2) end
-                return dr, dg, db2
-            end, profession.label .. L["Color_Reset_Hint"])
-            swatch:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-            nameLbl = row:CreateFontString(nil, "OVERLAY")
-            nameLbl:SetFont(FONT_ROWS, 10, "OUTLINE")
-            nameLbl:SetPoint("LEFT", row, "LEFT", 0, 0)
-            nameLbl:SetPoint("RIGHT", swatch, "LEFT", -4, 0)
-            nameLbl:SetJustifyH("LEFT")
-            nameLbl:SetText(profession.label)
-            nameLbl:SetTextColor(cr, cg, cb)
-            yOff = yOff - 24
+            local lbl = btn:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+            lbl:SetPoint("CENTER")
+            lbl:SetText(tab.label)
+            lbl:SetTextColor(isActive and 0.85 or 0.62, isActive and 1.0 or 0.75, isActive and 0.92 or 0.70)
+
+            btn:SetScript("OnClick", function()
+                MR._gatheringCfgPage = tab.key
+                PopulateGatheringConfig(frame)
+            end)
+            btn:SetScript("OnEnter", function()
+                if activePage ~= tab.key then
+                    btn:SetBackdropColor(0.08, 0.18, 0.24, 1)
+                    btn:SetBackdropBorderColor(0.24, 0.74, 0.68, 1)
+                    lbl:SetTextColor(0.90, 0.98, 0.96)
+                end
+            end)
+            btn:SetScript("OnLeave", function()
+                local selected = (MR._gatheringCfgPage or "display") == tab.key
+                btn:SetBackdropColor(selected and 0.11 or 0.05, selected and 0.24 or 0.09, selected and 0.23 or 0.15, 1)
+                btn:SetBackdropBorderColor(selected and 0.22 or 0.16, selected and 0.82 or 0.28, selected and 0.70 or 0.36, 1)
+                lbl:SetTextColor(selected and 0.85 or 0.62, selected and 1.0 or 0.75, selected and 0.92 or 0.70)
+            end)
         end
+        yOff = yOff - 26
     end
 
-    Gap(4); Divider()
-    Btn(L["Config_ResetColors"], function()
-        MR.db.profile.gatheringProfColors = {}
-        RebuildGatheringLocationsFrame()
-        PopulateGatheringConfig(frame)
-    end)
+    if activePage == "display" then
+        SecLabel(L["Config_Display"])
+        Check(L["Config_LockPosition"], function() return db.gatheringLocked end, function(value)
+            db.gatheringLocked = value
+            if gatheringLocationsFrame then gatheringLocationsFrame:SetMovable(not value) end
+        end)
+        Check(L["Config_HideWhenCompleted"], function() return db.gatheringHideCompleted end, function(value)
+            db.gatheringHideCompleted = value
+            RebuildGatheringLocationsFrame()
+        end)
+        Slider(L["WIDTH"], MIN_W, MAX_W, 10, function() return db.gatheringWidth or DEFAULT_W end, function(value)
+            db.gatheringWidth = math.floor(value / 10) * 10
+            RebuildGatheringLocationsFrame()
+        end, 0.80, 0.53, 0.20)
+        Slider(L["HEIGHT"], MIN_H, MAX_H, 10, function() return db.gatheringHeight or DEFAULT_H end, function(value)
+            db.gatheringHeight = math.floor(value / 10) * 10
+            if gatheringLocationsFrame and not db.gatheringMinimized then gatheringLocationsFrame:SetHeight(db.gatheringHeight) end
+        end, 0.60, 0.80, 0.40)
+        local syncFs = MR.db.profile.syncWindowFontSize
+        Slider(L["Config_FontSize"], 7, 16, 1, function() return db.gatheringFontSize or 9 end, function(value)
+            db.gatheringFontSize = math.floor(value)
+            RebuildGatheringLocationsFrame()
+            PopulateGatheringConfig(frame)
+        end, 0.78, 0.55, 0.16, syncFs)
+        Slider(L["BACKGROUND"], 0, 1, 0.05, function() return db.gatheringAlpha or 1.0 end, function(value)
+            db.gatheringAlpha = math.floor(value * 20) / 20
+            if gatheringLocationsFrame then
+                gatheringLocationsFrame:SetBackdropColor(0.03, 0.05, 0.08, 0.97 * value)
+                gatheringLocationsFrame:SetBackdropBorderColor(0.22, 0.18, 0.28, value)
+                if gatheringLocationsFrame.leftAccent then gatheringLocationsFrame.leftAccent:SetAlpha(value) end
+                if gatheringLocationsFrame.topAccent then gatheringLocationsFrame.topAccent:SetAlpha(value) end
+            end
+        end, 0.40, 0.40, 0.40)
+        Slider(L["SCALE"], 0.5, 2.0, 0.05, function() return db.gatheringScale or 1.0 end, function(value)
+            db.gatheringScale = value
+            if gatheringLocationsFrame then gatheringLocationsFrame:SetScale(value) end
+        end, 0.45, 0.22, 0.82, MR.db.profile.syncWindowScale)
+    elseif activePage == "professions" then
+        SecLabel(L["Config_ProfessionColors"])
+        for _, profession in ipairs(PROFESSIONS) do
+            if HasProfessionLearned(profession.skillLine) then
+                local cr, cg, cb = GetProfessionColor(profession.key)
+                local row = CreateFrame("Frame", nil, body)
+                row:SetPoint("TOPLEFT", body, "TOPLEFT", pad, yOff)
+                row:SetPoint("TOPRIGHT", body, "TOPRIGHT", -pad, yOff)
+                row:SetHeight(22)
+                local nameLbl
+                local swatch = OptionsColorSwatch(row, cr, cg, cb, function(r, g, b)
+                    SetProfessionColor(profession.key, r, g, b)
+                    if nameLbl then nameLbl:SetTextColor(r, g, b) end
+                end, function()
+                    ResetProfessionColor(profession.key)
+                    local dr, dg, db2 = profession.color[1], profession.color[2], profession.color[3]
+                    if nameLbl then nameLbl:SetTextColor(dr, dg, db2) end
+                    return dr, dg, db2
+                end, profession.label .. L["Color_Reset_Hint"])
+                swatch:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+                nameLbl = row:CreateFontString(nil, "OVERLAY")
+                nameLbl:SetFont(FONT_ROWS, 10, "OUTLINE")
+                nameLbl:SetPoint("LEFT", row, "LEFT", 0, 0)
+                nameLbl:SetPoint("RIGHT", swatch, "LEFT", -4, 0)
+                nameLbl:SetJustifyH("LEFT")
+                nameLbl:SetText(profession.label)
+                nameLbl:SetTextColor(cr, cg, cb)
+                yOff = yOff - 24
+            end
+        end
+    else
+        SecLabel(L["RESETS"])
+        Btn(L["Config_ResetColors"], function()
+            MR.db.profile.gatheringProfColors = {}
+            RebuildGatheringLocationsFrame()
+            PopulateGatheringConfig(frame)
+        end)
+    end
 
     local totalH = math.abs(yOff) + 10
+    if activePage == "display" then
+        frame._configMinHeight = math.max(frame._configMinHeight or 0, totalH)
+    end
+    totalH = math.max(totalH, frame._configMinHeight or totalH)
     frame:SetHeight(totalH)
     body:SetHeight(totalH)
 end

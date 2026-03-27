@@ -58,6 +58,7 @@ L["Config_AutoHidePanelHeaders"] = "Автоматически скрывать 
 L["Config_TabWindows"] = "Окна"
 L["Config_TabLayout"] = "Макет"
 L["Config_TabModules"] = "Модули"
+L["Config_TabColors"] = "Цвета"
 L["Config_TabReset"] = "Сброс"
 L["Config_LayoutMode"] = "Режим макета"
 L["Config_LayoutShared"] = "Общий"

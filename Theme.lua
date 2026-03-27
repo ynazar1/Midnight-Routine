@@ -505,7 +505,7 @@ function ns.OptionsDivider(body, yOff, pad)
     frame:SetHeight(1)
     frame:SetBackdrop(ns.MakeBackdrop(false))
     frame:SetBackdropColor(1, 1, 1, 0.07)
-    return yOff - 6
+    return yOff - 4
 end
 
 function ns.OptionsSectionLabel(body, yOff, text, pad, fontSize)
@@ -517,7 +517,7 @@ function ns.OptionsSectionLabel(body, yOff, text, pad, fontSize)
     fs:SetPoint("TOPRIGHT", body, "TOPRIGHT", -pad, yOff)
     fs:SetJustifyH("LEFT")
     fs:SetWordWrap(false)
-    return yOff - 14
+    return yOff - 12
 end
 
 function ns.OptionsCheckbox(body, yOff, label, getVal, setVal, r, g, b, pad, onRefresh, fontSize)
@@ -542,7 +542,7 @@ function ns.OptionsCheckbox(body, yOff, label, getVal, setVal, r, g, b, pad, onR
     lbl:SetPoint("RIGHT", body, "RIGHT", -pad, 0)
     lbl:SetJustifyH("LEFT")
     lbl:SetWordWrap(false)
-    return yOff - 22
+    return yOff - 19
 end
 
 function ns.OptionsBtn(body, yOff, label, onClick, width, pad, fontSize)
@@ -577,7 +577,7 @@ function ns.OptionsBtn(body, yOff, label, onClick, width, pad, fontSize)
         fs:SetTextColor(0.70, 0.88, 0.85)
     end)
 
-    return yOff - 26
+    return yOff - 22
 end
 
 function ns.OptionsSlider(body, yOff, label, min, max, step, getVal, setVal, fillR, fillG, fillB, pad, disabled, fontSize)
@@ -598,11 +598,20 @@ function ns.OptionsSlider(body, yOff, label, min, max, step, getVal, setVal, fil
     lbl:SetJustifyH("LEFT")
     lbl:SetWordWrap(false)
 
-    yOff = yOff - 14
+    yOff = yOff - 11
+
+    local bodyWidth = body:GetWidth()
+    if not bodyWidth or bodyWidth <= 0 then
+        local parent = body.GetParent and body:GetParent() or nil
+        bodyWidth = parent and parent:GetWidth() or 220
+    end
+
+    local valueBoxW = 44
+    local sliderW = math.max(96, bodyWidth - (pad * 2) - valueBoxW - 4)
 
     local bg = CreateFrame("Frame", nil, body, "BackdropTemplate")
     bg:SetPoint("TOPLEFT", body, "TOPLEFT", pad, yOff)
-    bg:SetSize(138, 14)
+    bg:SetSize(sliderW, 14)
     bg:SetBackdrop(ns.MakeBackdrop())
     bg:SetBackdropColor(0, 0, 0, disabled and 0.25 or 0.5)
     bg:SetBackdropBorderColor(0.25, 0.25, 0.3, disabled and 0.4 or 1)
@@ -614,7 +623,7 @@ function ns.OptionsSlider(body, yOff, label, min, max, step, getVal, setVal, fil
 
     local valBox = CreateFrame("Frame", nil, body, "BackdropTemplate")
     valBox:SetPoint("LEFT", bg, "RIGHT", 4, 0)
-    valBox:SetSize(44, 14)
+    valBox:SetSize(valueBoxW, 14)
     valBox:SetBackdrop(ns.MakeBackdrop())
     valBox:SetBackdropColor(0, 0, 0, disabled and 0.25 or 0.5)
     valBox:SetBackdropBorderColor(0.25, 0.25, 0.3, disabled and 0.4 or 1)
@@ -657,7 +666,7 @@ function ns.OptionsSlider(body, yOff, label, min, max, step, getVal, setVal, fil
         end)
     end
 
-    return yOff - 18
+    return yOff - 16
 end
 
 function ns.OptionsColorSwatch(parent, r, g, b, onPick, onReset, tooltip)
