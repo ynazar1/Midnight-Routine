@@ -16,6 +16,7 @@ local DEFAULTS = {
     profile = {
         locked          = false,
         scale           = 1.0,
+        minimized       = false,
         frameAlpha      = 1.0,
         hideFramesInInstances = false,
         transparentMode = false,
@@ -27,6 +28,7 @@ local DEFAULTS = {
         backgroundMedia = nil,
         minimap         = { hide = false },
         firstSeen       = false,
+        welcomeSuppressed = false,
         position        = { point = "CENTER", x = 0, y = 0 },
         renownOpen          = false,
         raresOpen           = false,

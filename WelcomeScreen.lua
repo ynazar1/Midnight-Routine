@@ -354,12 +354,11 @@ local function BuildWelcomeScreen()
                 end
             end
         end
-        MR.db.profile.firstSeen = true
+        MR:DismissFirstTimeGlow()
         MR.db.char.welcomeSeen = true
         if suppressCb:GetChecked() then
             MR.db.profile.welcomeSuppressed = true
         end
-        if MR.cfgShine then MR.cfgShine:Stop() end
         f:Hide()
         MR:RefreshUI()
         if anyEnabled and MR.frame then
@@ -396,6 +395,7 @@ local function BuildWelcomeScreen()
 end
 
 function MR:ShowWelcomeScreen()
+    self._welcomePending = nil
     if self.welcomeFrame then
         self.welcomeFrame:Hide()
         self.welcomeFrame = nil
@@ -407,19 +407,40 @@ end
 function MR:MaybeShowWelcomeScreen()
     if self.db.profile.welcomeSuppressed then return end
     if self.db.char.welcomeSeen then return end
+    if self._welcomePending then return end
+    if self.welcomeFrame and self.welcomeFrame:IsShown() then return end
+
+    self._welcomePending = true
     local ticks = 0
     local checker = CreateFrame("Frame")
-    checker:SetScript("OnUpdate", function(self, dt)
+    checker:SetScript("OnUpdate", function(frame)
         ticks = ticks + 1
         if ticks >= 5 then
-            self:SetScript("OnUpdate", nil)
-            self:Hide()
-            MR:ShowWelcomeScreen()
-            if MR.cfgShine then MR.cfgShine:Play() end
+            frame:SetScript("OnUpdate", nil)
+            frame:Hide()
+            MR._welcomePending = nil
+            if MR.db and MR.db.profile and not MR.db.profile.welcomeSuppressed
+                and MR.db.char and not MR.db.char.welcomeSeen then
+                MR:ShowWelcomeScreen()
+                if MR.cfgShine and not MR.db.profile.firstSeen then
+                    MR.cfgShine:Play()
+                end
+            end
         end
     end)
 end
 
 function MR:DismissFirstTimeGlow()
-    if self.cfgShine then self.cfgShine:Stop() end
+    if self.db and self.db.profile and not self.db.profile.firstSeen then
+        self.db.profile.firstSeen = true
+    end
+
+    if self._firstSeenGlowTimer then
+        self._firstSeenGlowTimer:Cancel()
+        self._firstSeenGlowTimer = nil
+    end
+
+    if self.cfgShine then
+        self.cfgShine:Stop()
+    end
 end
