@@ -616,5 +616,3 @@ L["Currency_VoidlightMarl_Label"] = "|cffc792ffMarne de Lumière du Vide :|r"
 L["Currency_RestoredCofferKey_Label"] = "|cffe8c96eClé de coffre réparée :|r"
 L["Currency_SparkRadiance_Label"] = "|cffffb347Étincelle de radiance :|r"
 L["Currency_Undercoin_Label"] = "|cffd8c36aSous-pièce :|r"
-
-}
