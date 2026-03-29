@@ -4,12 +4,12 @@ local MR = ns.MR
 local L = LibStub("AceLocale-3.0"):GetLocale("MidnightRoutine")
 
 local SA_ASSIGNMENTS = {
-    { quest = 91390, unlock = 94865, name = L["SA_Temple"],    zone = 2395, zoneLabel = L["Zone_EversongWoods"] },
+    { quest = 91390, unlock = 94865, name = L["SA_Temple"],    zone = 2437, zoneLabel = L["Zone_ZulAman"] },
     { quest = 91796, unlock = 94866, name = L["SA_Ours"],      zone = 2437, zoneLabel = L["Zone_ZulAman"] },
     { quest = 92063, unlock = 94390, name = L["SA_Hunter"],    zone = 2413, zoneLabel = L["Zone_Harandar"] },
     { quest = 92139, unlock = 95435, name = L["SA_Shade"],     zone = 2395, zoneLabel = L["Zone_EversongWoods"] },
-    { quest = 92145, unlock = 92848, name = L["SA_Drink"],     zone = 2393, zoneLabel = L["Faction_SilvermoonCourt"] },
-    { quest = 93013, unlock = 94391, name = L["SA_Push"],      zone = 2405, zoneLabel = L["Zone_Voidstorm"] },
+    { quest = 92145, unlock = 92848, name = L["SA_Drink"],     zone = 2395, zoneLabel = L["Zone_EversongWoods"] },
+    { quest = 93013, unlock = 94391, name = L["SA_Push"],      zone = 2413, zoneLabel = L["Zone_Harandar"] },
     { quest = 93244, unlock = 94795, name = L["SA_Agents"],    zone = 2405, zoneLabel = L["Zone_Voidstorm"] },
     { quest = 93438, unlock = 94743, name = L["SA_Precision"], zone = 2413, zoneLabel = L["Zone_Harandar"] },
 }
