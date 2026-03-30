@@ -192,7 +192,10 @@ local function EstimateCurrencyQuantity(currencyInfo)
     local quantity = tonumber(currencyInfo.quantity) or 0
     local maxQuantity = tonumber(currencyInfo.maxQuantity) or 0
     local lastUpdated = tonumber(currencyInfo.lastUpdated) or 0
-    local dailyGain = 250
+    local dailyGain = tonumber(currencyInfo.rechargingAmountPerCycle) or 250
+    if dailyGain < 0 then
+        dailyGain = 0
+    end
 
     if maxQuantity <= 0 then
         return quantity, maxQuantity

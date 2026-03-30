@@ -498,6 +498,14 @@ local function WBConcentrationText(entry)
     return tostring(current)
 end
 
+local function WBConcentrationLabel()
+    return rawget(L, "Concentration") or "Concentration"
+end
+
+local function WBAltLoginPrompt()
+    return L["AltBoard_LoginAltPrompt"] or "Log into an alt for it to show here."
+end
+
 local function WBCreateScrollArea(parent, topLeftAnchor, bottomRightAnchor)
     local scroll = CreateFrame("ScrollFrame", nil, parent)
     scroll:SetPoint(topLeftAnchor[1], topLeftAnchor[2], topLeftAnchor[3], topLeftAnchor[4], topLeftAnchor[5])
@@ -699,7 +707,7 @@ function MR:RefreshWarbandBoard()
     frame.summaryValue:SetTextColor(countColor(totalDone, math.max(totalRows, 1)))
 
     if #data <= 1 then
-        frame.summarySub:SetText(string.format("%s  |  %s", expansionInfo.shortLabel or expansionInfo.label or expansionInfo.key, L["AltBoard_LoginAltPrompt"] or "Log into an alt for it to show here."))
+        frame.summarySub:SetText(string.format("%s  |  %s", expansionInfo.shortLabel or expansionInfo.label or expansionInfo.key, WBAltLoginPrompt()))
     else
         frame.summarySub:SetText(string.format("%s  |  " .. (L["AltBoard_CharactersTracked"] or "%d characters tracked"), expansionInfo.shortLabel or expansionInfo.label or expansionInfo.key, #data))
     end
@@ -710,8 +718,16 @@ function MR:RefreshWarbandBoard()
 
     if not selected then
         frame.heroName:SetText(L["AltBoard_NoTrackedCharacters"] or "No tracked characters yet")
-        frame.heroMeta:SetText(L["AltBoard_LoginCharacterPrompt"] or "Log into a character with MidnightRoutine enabled to populate the board.")
+        frame.heroMeta:SetText(WBAltLoginPrompt())
         frame.heroStatus:SetText("")
+        WBReleaseWidgets(frame.heroConcentrationWidgets)
+        if frame.concentrationPane then
+            frame.concentrationPane:SetHeight(42)
+        end
+        if frame.concentrationStatus then
+            frame.concentrationStatus:SetText(WBAltLoginPrompt())
+            frame.concentrationStatus:SetTextColor(0.68, 0.74, 0.84)
+        end
         frame.detailContent:SetHeight(1)
         return
     end
@@ -822,7 +838,87 @@ function MR:RefreshWarbandBoard()
     frame.heroName:SetText(selected.name)
     local syncAt = selected.lastSyncAt and selected.lastSyncAt > 0 and selected.lastSyncAt or selected.lastResetAt
     frame.heroMeta:SetText(string.format(L["AltBoard_LastSynced"] or "%s  |  Last synced: %s", selected.realm ~= "" and selected.realm or (L["AltBoard_UnknownRealm"] or "Unknown Realm"), WBFormatTimestamp(syncAt)))
+    frame.heroStatus:ClearAllPoints()
+    frame.heroStatus:SetPoint("BOTTOMLEFT", frame.hero, "BOTTOMLEFT", 14, 12)
     frame.heroStatus:SetText("")
+
+    WBReleaseWidgets(frame.heroConcentrationWidgets)
+    frame.heroConcentrationWidgets = frame.heroConcentrationWidgets or {}
+
+    local showHiddenCharacters = MR.db and MR.db.profile and MR.db.profile.altBoardShowHidden == true
+    local concentrationEntries = (not showHiddenCharacters) and type(selected.concentration) == "table" and selected.concentration or nil
+    local concentrationHeight = 42
+    if concentrationEntries and #concentrationEntries > 0 and frame.concentrationPane then
+        local contentWidth = math.max((frame.concentrationPane:GetWidth() or 520) - 28, 200)
+        local columns = math.max(1, math.min(4, #concentrationEntries))
+        if contentWidth >= 520 then
+            columns = math.max(columns, math.min(3, #concentrationEntries))
+        end
+        local gap = 8
+        local chipWidth = math.max(110, math.floor((contentWidth - ((columns - 1) * gap)) / columns))
+        local rowHeight = 24
+        local usedRows = math.max(1, math.ceil(#concentrationEntries / columns))
+
+        for index, concentrationEntry in ipairs(concentrationEntries) do
+            local rr, rg, rb = WBConcentrationColor(concentrationEntry)
+            local labelText = concentrationEntry.label or (L["Unknown"] or "Unknown")
+            local valueText = WBConcentrationText(concentrationEntry)
+            local col = (index - 1) % columns
+            local row = math.floor((index - 1) / columns)
+            local xOffset = 14 + (col * (chipWidth + gap))
+            local yOffset = -34 - (row * (rowHeight + gap))
+
+            local chip = CreateFrame("Frame", nil, frame.concentrationPane, "BackdropTemplate")
+            chip:SetSize(chipWidth, rowHeight)
+            chip:SetPoint("TOPLEFT", frame.concentrationPane, "TOPLEFT", xOffset, yOffset)
+            chip:SetBackdrop(MakeBackdrop())
+            chip:SetBackdropColor(rr * 0.14, rg * 0.14, rb * 0.14, 0.96)
+            chip:SetBackdropBorderColor(rr * 0.75, rg * 0.75, rb * 0.75, 1)
+
+            local chipGlow = chip:CreateTexture(nil, "BACKGROUND")
+            chipGlow:SetAllPoints()
+            chipGlow:SetTexture("Interface\\Buttons\\WHITE8X8")
+            chipGlow:SetColorTexture(rr, rg, rb, 0.08)
+
+            local dot = chip:CreateTexture(nil, "ARTWORK")
+            dot:SetSize(8, 8)
+            dot:SetPoint("LEFT", chip, "LEFT", 8, 0)
+            dot:SetColorTexture(rr, rg, rb, 1)
+
+            local label = chip:CreateFontString(nil, "OVERLAY")
+            label:SetFont(FONT_ROWS, math.max(8, GetFontSize() - 1), "OUTLINE")
+            label:SetPoint("LEFT", dot, "RIGHT", 6, 0)
+            label:SetPoint("RIGHT", chip, "RIGHT", -78, 0)
+            label:SetJustifyH("LEFT")
+            label:SetText(labelText)
+            label:SetTextColor(0.84, 0.89, 0.96)
+
+            local value = chip:CreateFontString(nil, "OVERLAY")
+            value:SetFont(FONT_HEADERS, math.max(9, GetFontSize() - 1), "OUTLINE")
+            value:SetPoint("RIGHT", chip, "RIGHT", -8, 0)
+            value:SetJustifyH("RIGHT")
+            value:SetText(valueText)
+            value:SetTextColor(0.97, 0.98, 1.00)
+
+            table.insert(frame.heroConcentrationWidgets, chip)
+        end
+
+        concentrationHeight = 34 + (usedRows * rowHeight) + (math.max(0, usedRows - 1) * gap) + 10
+    else
+        frame.heroStatus:SetText(selected.stale and (L["AltBoard_AwaitingRefresh"] or "Awaiting refresh") or "")
+        if frame.concentrationStatus then
+            frame.concentrationStatus:SetText(selected.stale and (L["AltBoard_AwaitingRefresh"] or "Awaiting refresh") or WBAltLoginPrompt())
+            frame.concentrationStatus:SetTextColor(selected.stale and 0.95 or 0.68, selected.stale and 0.50 or 0.74, selected.stale and 0.25 or 0.84)
+        end
+    end
+
+    if frame.concentrationStatus and concentrationEntries and #concentrationEntries > 0 then
+        frame.concentrationStatus:SetText("")
+    end
+
+    if frame.concentrationPane then
+        frame.concentrationPane:SetHeight(concentrationHeight)
+    end
 
     local detailWidth = math.max((frame.detailScroll and frame.detailScroll:GetWidth() or 540) - 8, 320)
     frame.detailContent:SetWidth(detailWidth)
@@ -1116,9 +1212,36 @@ function MR:ToggleWarbandBoard()
         heroStatus:SetFont(FONT_ROWS, math.max(10, GetFontSize()), "OUTLINE")
         heroStatus:SetPoint("BOTTOMLEFT", hero, "BOTTOMLEFT", 14, 12)
 
+        local concentrationPane = CreateFrame("Frame", nil, rightPane, "BackdropTemplate")
+        concentrationPane:SetPoint("TOPLEFT", hero, "BOTTOMLEFT", 0, -12)
+        concentrationPane:SetPoint("TOPRIGHT", hero, "BOTTOMRIGHT", 0, -12)
+        concentrationPane:SetHeight(42)
+        concentrationPane:SetBackdrop(MakeBackdrop())
+        concentrationPane:SetBackdropColor(0.04, 0.08, 0.16, 0.96)
+        concentrationPane:SetBackdropBorderColor(0.18, 0.22, 0.34, 1)
+
+        local concentrationAccent = concentrationPane:CreateTexture(nil, "ARTWORK")
+        concentrationAccent:SetPoint("TOPLEFT")
+        concentrationAccent:SetPoint("TOPRIGHT")
+        concentrationAccent:SetHeight(2)
+        concentrationAccent:SetColorTexture(0.76, 0.62, 0.98, 1)
+
+        local concentrationTitle = concentrationPane:CreateFontString(nil, "OVERLAY")
+        concentrationTitle:SetFont(FONT_HEADERS, math.max(10, GetFontSize() + 1), "OUTLINE")
+        concentrationTitle:SetPoint("TOPLEFT", concentrationPane, "TOPLEFT", 14, -10)
+        concentrationTitle:SetText(WBConcentrationLabel())
+        concentrationTitle:SetTextColor(0.88, 0.82, 1.00)
+
+        local concentrationStatus = concentrationPane:CreateFontString(nil, "OVERLAY")
+        concentrationStatus:SetFont(FONT_ROWS, math.max(8, GetFontSize() - 1), "OUTLINE")
+        concentrationStatus:SetPoint("TOPLEFT", concentrationTitle, "BOTTOMLEFT", 0, -8)
+        concentrationStatus:SetPoint("RIGHT", concentrationPane, "RIGHT", -12, 0)
+        concentrationStatus:SetJustifyH("LEFT")
+        concentrationStatus:SetTextColor(0.70, 0.78, 0.88)
+
         local detailScroll, detailContent, detailScrollUpdate = WBCreateScrollArea(
             rightPane,
-            { "TOPLEFT", hero, "BOTTOMLEFT", 0, -12 },
+            { "TOPLEFT", concentrationPane, "BOTTOMLEFT", 0, -12 },
             { "BOTTOMRIGHT", rightPane, "BOTTOMRIGHT", -10, 10 }
         )
         detailContent:SetSize(520, 1)
@@ -1134,6 +1257,11 @@ function MR:ToggleWarbandBoard()
         frame.summaryValue = summaryValue
         frame.summarySub = summarySub
         frame.expansionDropdown = expansionDropdown
+        frame.hero = hero
+        frame.heroConcentrationWidgets = {}
+        frame.concentrationPane = concentrationPane
+        frame.concentrationTitle = concentrationTitle
+        frame.concentrationStatus = concentrationStatus
         frame.leftPane = leftPane
         frame.showHiddenBtn = showHiddenBtn
         frame.heroName = heroName
