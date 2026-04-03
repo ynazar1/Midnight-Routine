@@ -363,7 +363,7 @@ local function BuildWelcomeScreen()
         MR:RefreshUI()
         if anyEnabled and MR.frame then
             MR.frame:Show()
-            MR.db.char.panelOpen = true
+            MR:SetMainFrameOpenPreference(true)
         end
     end)
     confirmBtn:SetScript("OnEnter", function()

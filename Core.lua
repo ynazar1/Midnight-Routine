@@ -13,6 +13,9 @@ local DAY_SECONDS = 24 * 60 * 60
 local WEEK_SECONDS = 7 * DAY_SECONDS
 
 local DEFAULTS = {
+    global = {
+        mainFrameOpen = true,
+    },
     profile = {
         locked          = false,
         scale           = 1.0,
@@ -990,6 +993,28 @@ function MR:IsCharacterWindowLayoutEnabled()
     return self.db and self.db.profile and self.db.profile.characterWindowLayout == true
 end
 
+function MR:GetMainFrameOpenPreference()
+    if not self.db then
+        return true
+    end
+    if self:IsCharacterWindowLayoutEnabled() then
+        return self.db.char.panelOpen ~= false
+    end
+    return self.db.global.mainFrameOpen ~= false
+end
+
+function MR:SetMainFrameOpenPreference(open)
+    if not self.db then
+        return
+    end
+    local v = open and true or false
+    if self:IsCharacterWindowLayoutEnabled() then
+        self.db.char.panelOpen = v
+    else
+        self.db.global.mainFrameOpen = v
+    end
+end
+
 function MR:GetWindowLayoutValue(key)
     if not (self and self.db and key) then return nil end
 
@@ -1739,7 +1764,7 @@ function MR:ToggleManagedWindows()
     if self.frame then
         self.frame:Show()
     end
-    self.db.char.panelOpen = true
+    self:SetMainFrameOpenPreference(true)
     return true
 end
 
@@ -1840,7 +1865,7 @@ function MR:OnEnteringWorld()
     local temporarilyHidden = self._toggleRestoreState ~= nil
 
     if not self.db.profile.firstSeen then
-        self.db.char.panelOpen     = false
+        self:SetMainFrameOpenPreference(false)
         self.db.profile.renownOpen = false
     end
 
@@ -1849,7 +1874,7 @@ function MR:OnEnteringWorld()
     else
         self:RefreshUI()
     end
-    if self.frame and self.db.char.panelOpen == false then
+    if self.frame and not self:GetMainFrameOpenPreference() then
         self.frame:Hide()
     end
     if temporarilyHidden then
@@ -1962,10 +1987,10 @@ SlashCmdList["MIDROUTE"] = function(msg)
         print(L["Frame_Unlocked"])
     elseif msg == "hide"    then
         if MR.frame then MR.frame:Hide() end
-        MR.db.char.panelOpen = false
+        MR:SetMainFrameOpenPreference(false)
     elseif msg == "show"    then
         if MR.frame then MR.frame:Show() end
-        MR.db.char.panelOpen = true
+        MR:SetMainFrameOpenPreference(true)
     elseif msg == "toggle"  then
         MR:ToggleManagedWindows()
     elseif msg == "main" or msg == "main toggle" then
@@ -1975,10 +2000,10 @@ SlashCmdList["MIDROUTE"] = function(msg)
         if MR.frame then
             if MR.frame:IsShown() then
                 MR.frame:Hide()
-                MR.db.char.panelOpen = false
+                MR:SetMainFrameOpenPreference(false)
             else
                 MR.frame:Show()
-                MR.db.char.panelOpen = true
+                MR:SetMainFrameOpenPreference(true)
             end
         end
     elseif msg == "main show" then
@@ -1986,10 +2011,10 @@ SlashCmdList["MIDROUTE"] = function(msg)
             MR:BuildUI()
         end
         if MR.frame then MR.frame:Show() end
-        MR.db.char.panelOpen = true
+        MR:SetMainFrameOpenPreference(true)
     elseif msg == "main hide" then
         if MR.frame then MR.frame:Hide() end
-        MR.db.char.panelOpen = false
+        MR:SetMainFrameOpenPreference(false)
     elseif msg == "minimap" then
         local newHide = not (MR.db.profile.minimap and MR.db.profile.minimap.hide)
         MR:SetMinimapHidden(newHide)
