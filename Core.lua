@@ -29,6 +29,7 @@ local DEFAULTS = {
         fontMedia       = nil,
         backgroundMedia = nil,
         minimap         = { hide = false },
+        managedWindowRestoreState = nil,
         firstSeen       = false,
         welcomeSuppressed = false,
         position        = { point = "CENTER", x = 0, y = 0 },
@@ -965,11 +966,13 @@ function MR:SetDetachedModuleSize(key, width, height)
     }
 end
 
-function MR:SetModuleEnabled(key, enabled)
+function MR:SetModuleEnabled(key, enabled, skipRefresh)
     local storage = self:GetActiveModuleStorage()
     if not storage[key] then storage[key] = {} end
     storage[key].enabled = enabled
-    self:RefreshUI()
+    if not skipRefresh then
+        self:RefreshUI()
+    end
 end
 
 function MR:IsModuleHideComplete(modKey)
@@ -1437,8 +1440,8 @@ function MR:Scan()
 
         if mod.onScan then
             local before = progress[mod.key] and next(progress[mod.key])
-            mod.onScan(mod)
-            if progress[mod.key] and next(progress[mod.key]) ~= before then dirty = true end
+            local changed = mod.onScan(mod)
+            if changed or (progress[mod.key] and next(progress[mod.key]) ~= before) then dirty = true end
         end
 
         local mdb = progress[mod.key]
@@ -1652,8 +1655,16 @@ function MR:ResetAllSettings()
         return
     end
 
+    local welcomeSeen = self.db.char and self.db.char.welcomeSeen
+    local welcomeSuppressed = self.db.profile and self.db.profile.welcomeSuppressed
+    local firstSeen = self.db.profile and self.db.profile.firstSeen
+
     RestoreDefaults(self.db.profile, DEFAULTS.profile)
     RestoreDefaults(self.db.char, DEFAULTS.char)
+
+    self.db.char.welcomeSeen = welcomeSeen and true or false
+    self.db.profile.welcomeSuppressed = welcomeSuppressed and true or false
+    self.db.profile.firstSeen = firstSeen and true or false
 
     self._orderedModulesCache = nil
     self._moduleStatsCache = nil
@@ -1739,7 +1750,35 @@ function MR:ManagedWindowStateHasVisibleFrames(state)
         or (state.detached and next(state.detached) ~= nil)
 end
 
-function MR:HideManagedWindows()
+function MR:PersistManagedWindowState(state)
+    if not self.db or not state then return end
+
+    self.db.char.panelOpen = state.panel and true or false
+    self.db.profile.renownOpen = state.renown and true or false
+    self.db.profile.raresOpen = state.rares and true or false
+    self.db.profile.gatheringLocOpen = state.gathering and true or false
+end
+
+function MR:SetManagedWindowRestoreState(state)
+    if not self.db then return end
+
+    if state and self:ManagedWindowStateHasVisibleFrames(state) then
+        self.db.profile.managedWindowRestoreState = DeepCopy(state)
+    else
+        self.db.profile.managedWindowRestoreState = nil
+    end
+end
+
+function MR:HideManagedWindows(persistState)
+    if persistState then
+        self:PersistManagedWindowState({
+            panel = false,
+            renown = false,
+            rares = false,
+            gathering = false,
+        })
+    end
+
     if self.frame then self.frame:Hide() end
     if self.HideDetachedModules then self:HideDetachedModules() end
     if self.HideConfig then self:HideConfig() end
@@ -1748,8 +1787,11 @@ function MR:HideManagedWindows()
     if self.HideGatheringLocations then self:HideGatheringLocations(false) end
 end
 
-function MR:RestoreManagedWindows(state)
+function MR:RestoreManagedWindows(state, persistState)
     state = state or {}
+    if persistState then
+        self:PersistManagedWindowState(state)
+    end
 
     if state.panel then
         if not self.frame and self.BuildUI then
@@ -1784,16 +1826,21 @@ function MR:ToggleManagedWindows()
         return false
     end
 
-    if self._toggleRestoreState then
-        self:RestoreManagedWindows(self._toggleRestoreState)
+    local restoreState = self._toggleRestoreState
+        or (self.db and self.db.profile and self.db.profile.managedWindowRestoreState)
+
+    if restoreState and self:ManagedWindowStateHasVisibleFrames(restoreState) then
+        self:RestoreManagedWindows(restoreState, true)
         self._toggleRestoreState = nil
+        self:SetManagedWindowRestoreState(nil)
         return true
     end
 
     local state = self:CaptureManagedWindowState()
     if self:ManagedWindowStateHasVisibleFrames(state) then
         self._toggleRestoreState = state
-        self:HideManagedWindows()
+        self:SetManagedWindowRestoreState(state)
+        self:HideManagedWindows(true)
         return false
     end
 
@@ -1835,6 +1882,12 @@ function MR:OnEnable()
         "UNIT_QUEST_LOG_CHANGED",
         "QUEST_TURNED_IN",
         "QUEST_DATA_LOAD_RESULT",
+        "GOSSIP_SHOW",
+        "GOSSIP_CLOSED",
+        "QUEST_DETAIL",
+        "QUEST_ACCEPTED",
+        "QUEST_PROGRESS",
+        "QUEST_COMPLETE",
         "LFG_COMPLETION_REWARD",
         "CURRENCY_DISPLAY_UPDATE",
         "AREA_POIS_UPDATED",
@@ -1931,14 +1984,16 @@ function MR:OnEnteringWorld()
             "COMBAT_TEXT_UPDATE",
         }, 1, "OnRenownUpdate")
     end
-    if not shouldHideFrames and not temporarilyHidden and self.db.profile.renownOpen and self.EnsureRenownShown then
-        self:ScheduleTimer(function() self:EnsureRenownShown() end, 1.5)
-    end
-    if not shouldHideFrames and not temporarilyHidden and self.db.profile.raresOpen and self.EnsureRaresShown then
-        self:ScheduleTimer(function() self:EnsureRaresShown() end, 1.7)
-    end
-    if not shouldHideFrames and not temporarilyHidden and self.db.profile.gatheringLocOpen and self.EnsureGatheringLocationsShown then
-        self:ScheduleTimer(function() self:EnsureGatheringLocationsShown() end, 1.9)
+    if not shouldHideFrames and not temporarilyHidden then
+        if self.db.profile.renownOpen and self.EnsureRenownShown then
+            self:EnsureRenownShown()
+        end
+        if self.db.profile.raresOpen and self.EnsureRaresShown then
+            self:EnsureRaresShown()
+        end
+        if self.db.profile.gatheringLocOpen and self.EnsureGatheringLocationsShown then
+            self:EnsureGatheringLocationsShown()
+        end
     end
     if self.db.profile.peekOnHover and self.ApplyPeekOnHover then
         self:ScheduleTimer(function() self:ApplyPeekOnHover(true) end, 2.5)

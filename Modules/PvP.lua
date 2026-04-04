@@ -93,33 +93,65 @@ local function GetOfferedKey(rowKey)
     return rowKey .. "_offered_this_week"
 end
 
+local IsQuestCurrentlyActive
+
+local function ColorsEqual(a, b)
+    if a == b then
+        return true
+    end
+    if type(a) ~= "table" or type(b) ~= "table" then
+        return false
+    end
+    return (a[1] or 0) == (b[1] or 0)
+        and (a[2] or 0) == (b[2] or 0)
+        and (a[3] or 0) == (b[3] or 0)
+        and (a[4] or 0) == (b[4] or 0)
+end
+
 local function SyncZerellaOfferState(progressBucket)
     if type(progressBucket) ~= "table" then
         return false
     end
 
     local anyVisible = false
+    local anyTracked = false
     for _, weekly in ipairs(ZERELLA_WEEKLIES) do
         if MR.IsQuestOfferVisible and MR:IsQuestOfferVisible(weekly.questId) then
             anyVisible = true
-            break
+        end
+
+        if IsQuestCurrentlyActive(weekly.questId)
+            or (C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(weekly.questId))
+            or progressBucket[weekly.key .. "_seen_active"]
+            or (tonumber(progressBucket[weekly.key]) or 0) > 0
+        then
+            anyTracked = true
         end
     end
 
-    if not anyVisible then
+    if not anyVisible and not anyTracked then
         return false
     end
 
+    local changed = progressBucket[ZERELLA_RESOLVED_KEY] ~= true
     progressBucket[ZERELLA_RESOLVED_KEY] = true
     for _, weekly in ipairs(ZERELLA_WEEKLIES) do
-        progressBucket[GetOfferedKey(weekly.key)] =
-            (MR.IsQuestOfferVisible and MR:IsQuestOfferVisible(weekly.questId)) and true or false
+        local offered = ((MR.IsQuestOfferVisible and MR:IsQuestOfferVisible(weekly.questId))
+            or IsQuestCurrentlyActive(weekly.questId)
+            or (C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(weekly.questId))
+            or progressBucket[weekly.key .. "_seen_active"]
+            or (tonumber(progressBucket[weekly.key]) or 0) > 0) and true or false
+        local offeredKey = GetOfferedKey(weekly.key)
+        if progressBucket[offeredKey] ~= offered then
+            progressBucket[offeredKey] = offered
+            changed = true
+        end
     end
 
-    return true
+    return changed
 end
 
-local function IsQuestCurrentlyActive(questId)
+IsQuestCurrentlyActive = function(questId)
     if not questId then
         return false
     end
@@ -152,13 +184,17 @@ end
 
 local function UpdateRotatingWeeklyQuestState(progressBucket, row, questId)
     if type(progressBucket) ~= "table" or type(row) ~= "table" or not row.key or not questId then
-        return false, false
+        return false, false, false
     end
 
     local seenKey = row.key .. "_seen_active"
     local isActive = IsQuestCurrentlyActive(questId)
     local isCompleted = C_QuestLog.IsQuestFlaggedCompleted and C_QuestLog.IsQuestFlaggedCompleted(questId) or false
     local wasDone = (tonumber(progressBucket[row.key]) or 0) > 0
+    local prevSeenActive = progressBucket[seenKey] and true or false
+    local prevValue = tonumber(progressBucket[row.key]) or 0
+    local prevCountText = row.countText
+    local prevCountColor = row.countColor
 
     if isActive then
         progressBucket[seenKey] = true
@@ -175,7 +211,12 @@ local function UpdateRotatingWeeklyQuestState(progressBucket, row, questId)
     row.countText = isDone and (L["Done"] or "Done") or (isActive and (L["Weekly_SA_Count_ActiveSingle"] or "Active") or nil)
     row.countColor = isDone and { 0.4, 0.85, 0.4 } or (isActive and { 1, 0.9, 0.3 } or nil)
 
-    return isActive, isDone
+    local changed = prevSeenActive ~= (progressBucket[seenKey] and true or false)
+        or prevValue ~= (progressBucket[row.key] or 0)
+        or prevCountText ~= row.countText
+        or not ColorsEqual(prevCountColor, row.countColor)
+
+    return isActive, isDone, changed
 end
 
 local function IsTrackedPvPWeeklyVisible(rowKey, questId)
@@ -232,15 +273,21 @@ MR:RegisterModule({
         end
 
         local progressBucket = progress[mod.key]
-        SyncZerellaOfferState(progressBucket)
+        local changed = SyncZerellaOfferState(progressBucket)
 
         for _, row in ipairs(mod.rows) do
-            UpdateRotatingWeeklyQuestState(progressBucket, row, row.questIds and row.questIds[1] or nil)
+            local _, _, rowChanged = UpdateRotatingWeeklyQuestState(progressBucket, row, row.questIds and row.questIds[1] or nil)
+            changed = changed or rowChanged
             if row.key == "zerella_check" then
+                if row.countText ~= nil or row.countColor ~= nil then
+                    changed = true
+                end
                 row.countText = nil
                 row.countColor = nil
             end
         end
+
+        return changed
     end,
     rows = (function()
         local rows = {

@@ -320,13 +320,23 @@ local function BuildWelcomeScreen()
     confirmBtn:SetScript("OnClick", function()
         local anyEnabled = false
         for key, val in pairs(pendingEnabled) do
-            MR:SetModuleEnabled(key, val)
+            MR:SetModuleEnabled(key, val, true)
             if val then anyEnabled = true end
         end
-        if MR.db then
+        MR:DismissFirstTimeGlow()
+        MR.db.char.welcomeSeen = true
+        if suppressCb:GetChecked() then
+            MR.db.profile.welcomeSuppressed = true
+        end
+        f:Hide()
 
-            local prevRenown   = MR.db.profile.renownOpen
-            local prevRares    = MR.db.profile.raresOpen
+        C_Timer.After(0, function()
+            if not MR.db then
+                return
+            end
+
+            local prevRenown = MR.db.profile.renownOpen
+            local prevRares = MR.db.profile.raresOpen
             local prevGathering = MR.db.profile.gatheringLocOpen
 
             if pendingRenown ~= prevRenown then
@@ -353,18 +363,13 @@ local function BuildWelcomeScreen()
                     MR:HideGatheringLocations(false)
                 end
             end
-        end
-        MR:DismissFirstTimeGlow()
-        MR.db.char.welcomeSeen = true
-        if suppressCb:GetChecked() then
-            MR.db.profile.welcomeSuppressed = true
-        end
-        f:Hide()
-        MR:RefreshUI()
-        if anyEnabled and MR.frame then
-            MR.frame:Show()
-            MR.db.char.panelOpen = true
-        end
+
+            MR:RefreshUI()
+            if anyEnabled and MR.frame then
+                MR.frame:Show()
+                MR.db.char.panelOpen = true
+            end
+        end)
     end)
     confirmBtn:SetScript("OnEnter", function()
         confirmBtn:SetBackdropColor(0.08, 0.32, 0.20, 1)
