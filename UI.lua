@@ -1677,7 +1677,7 @@ function MR:BuildUI()
     closeBtn:SetPoint("RIGHT", titleBar, "RIGHT", -BTN_MARGIN, 0)
     closeBtn:SetScript("OnClick", function()
         f:Hide()
-        MR:SetMainFrameOpenPreference(false)
+        MR.db.char.panelOpen = false
     end)
 
     local minBtn = MakeHeaderBtn(
@@ -3320,12 +3320,6 @@ function MR:PopulateConfigFrame(f)
         yOff = yOff - 26
     end
     local function SetLayoutMode(enabled)
-        local wasPerChar = MR.db.profile.characterWindowLayout == true
-        if enabled and not wasPerChar then
-            MR.db.char.panelOpen = MR.db.global.mainFrameOpen ~= false
-        elseif not enabled and wasPerChar then
-            MR.db.global.mainFrameOpen = MR.db.char.panelOpen ~= false
-        end
         MR.db.profile.characterWindowLayout = enabled
         if MR.ApplySharedMediaSettings then
             MR:ApplySharedMediaSettings()
@@ -3405,7 +3399,7 @@ function MR:PopulateConfigFrame(f)
     if activePage == "windows" then
         SectionLabel(L["Title"])
         Checkbox(L["Config_ShowMainFrame"],
-            function() return MR:GetMainFrameOpenPreference() end,
+            function() return MR.frame and MR.frame:IsShown() or false end,
             function(v)
                 if v then
                     if not MR.frame then
@@ -3413,12 +3407,12 @@ function MR:PopulateConfigFrame(f)
                     elseif not MR.frame:IsShown() then
                         MR.frame:Show()
                     end
-                    MR:SetMainFrameOpenPreference(true)
+                    MR.db.char.panelOpen = true
                 else
                     if MR.frame then
                         MR.frame:Hide()
                     end
-                    MR:SetMainFrameOpenPreference(false)
+                    MR.db.char.panelOpen = false
                 end
             end, "#2ae7c6")
 
