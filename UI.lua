@@ -65,7 +65,7 @@ local function RefreshFonts()
 end
 
 local function GetMainHeaderHeight()
-    return math.max(28, GetFontSize() + 16)
+    return math.max(24, GetFontSize() + 11)
 end
 
 local function GetMainHeaderMetrics()
@@ -74,8 +74,8 @@ local function GetMainHeaderMetrics()
     return {
         fontSize = fontSize,
         headerHeight = headerHeight,
-        iconSize = math.max(14, fontSize + 2),
-        buttonSize = math.max(16, fontSize + 3),
+        iconSize = math.max(14, fontSize),
+        buttonSize = math.max(16, fontSize + 1),
         buttonPad = 3,
         buttonMargin = 6,
         warbandWidth = math.max(34, fontSize * 3),
@@ -1674,7 +1674,7 @@ function MR:BuildUI()
     MR._titleAccent = titleAccent
     titleAccent:SetPoint("TOPLEFT",    titleBar, "TOPLEFT",    0, 0)
     titleAccent:SetPoint("BOTTOMLEFT", titleBar, "BOTTOMLEFT", 0, 0)
-    titleAccent:SetWidth(4)
+    titleAccent:SetWidth(0)
     titleAccent:SetColorTexture(0.92, 0.72, 0.20, 1)
 
     local titleIcon = titleBar:CreateTexture(nil, "ARTWORK")
@@ -1684,7 +1684,7 @@ function MR:BuildUI()
     titleIcon:SetVertexColor(1, 0.84, 0.24, 1)
 
     local title = titleBar:CreateFontString(nil, "OVERLAY")
-    title:SetFont(FONT_HEADERS, math.max(11, GetFontSize() + 1), "OUTLINE")
+    title:SetFont(FONT_HEADERS, math.max(8, GetFontSize() - 2), "OUTLINE")
     title:SetPoint("LEFT", titleIcon, "RIGHT", 5, 0)
     title:SetPoint("RIGHT", titleBar, "RIGHT", -110, 0)
     title:SetJustifyH("LEFT")
@@ -1934,7 +1934,7 @@ function MR:BuildUI()
         if minBtn._lbl then
             minBtn._lbl:SetFont(FONT_HEADERS, math.max(8, metrics.fontSize - 1), "OUTLINE")
         end
-        title:SetFont(FONT_HEADERS, math.max(10, metrics.fontSize), "OUTLINE")
+        title:SetFont(FONT_HEADERS, math.max(8, metrics.fontSize - 2), "OUTLINE")
         titleCount:SetFont(FONT_ROWS, math.max(8, metrics.fontSize - 2), "OUTLINE")
         warbandText:SetFont(FONT_HEADERS, math.max(8, metrics.fontSize - 2), "OUTLINE")
     end
@@ -2490,7 +2490,7 @@ function MR:ApplySharedMediaSettings()
     RefreshFonts()
     local fontSize = GetFontSize()
     if self.titleText then
-        self.titleText:SetFont(FONT_HEADERS, math.max(9, fontSize), "OUTLINE")
+        self.titleText:SetFont(FONT_HEADERS, math.max(8, fontSize - 2), "OUTLINE")
     end
     if self.titleCount then
         self.titleCount:SetFont(FONT_ROWS, math.max(8, fontSize - 1), "OUTLINE")

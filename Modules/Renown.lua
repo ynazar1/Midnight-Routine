@@ -260,7 +260,7 @@ local function BuildRenownFrame()
 
     RestoreFramePos(f, "renownPos", 300, 0)
     f.topAccent = TopAccent(f)
-    f.leftAccent = LeftAccent(f)
+    f.leftAccent = nil
 
     local titleBar = TitleBar(f, HEADER_H)
     f.titleBar = titleBar

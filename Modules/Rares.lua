@@ -320,7 +320,7 @@ BuildRaresFrame = function()
     f:SetBackdropBorderColor(0.18, 0.10, 0.30, alpha)
     RestoreFramePos(f, "raresPos", 580, 0)
 
-    f.leftAccent = LeftAccent(f, 0.55, 0.28, 0.95)
+    f.leftAccent = nil
     f.topAccent  = TopAccent(f, 0.55, 0.28, 0.95)
     if f.leftAccent then f.leftAccent:SetAlpha(alpha) end
     if f.topAccent  then f.topAccent:SetAlpha(alpha)  end

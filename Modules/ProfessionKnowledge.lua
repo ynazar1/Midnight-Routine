@@ -433,7 +433,7 @@ local function BuildGatheringLocationsFrame(isRetry)
     frame:SetBackdropColor(0.03, 0.05, 0.08, 0.97 * alpha)
     frame:SetBackdropBorderColor(0.22, 0.18, 0.28, alpha)
     RestoreFramePos(frame, "gatheringLocPos", 860, 0)
-    frame.leftAccent = LeftAccent(frame, 0.80, 0.53, 0.20)
+    frame.leftAccent = nil
     frame.topAccent = TopAccent(frame, 0.80, 0.53, 0.20)
     if frame.leftAccent then frame.leftAccent:SetAlpha(alpha) end
     if frame.topAccent then frame.topAccent:SetAlpha(alpha) end
