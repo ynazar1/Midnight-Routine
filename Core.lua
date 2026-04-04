@@ -20,6 +20,8 @@ local DEFAULTS = {
         frameAlpha      = 1.0,
         hideFramesInInstances = false,
         transparentMode = false,
+        keepIconsVisibleInTextMode = true,
+        keepHeadersVisibleInTextMode = true,
         autoHidePanelHeaders = false,
         width           = 260,
         height          = 400,
@@ -74,6 +76,7 @@ local DEFAULTS = {
         gatheringProfColors  = {},
             gatheringHideCompleted = false,
         headerColors    = {},
+        headerBackgroundColors = {},
         rowColors       = {},
         syncWindowScale     = false,
         syncWindowFontSize  = false,
@@ -1049,6 +1052,29 @@ end
 function MR:ResetHeaderColor(modKey)
     if self.db.profile.headerColors then
         self.db.profile.headerColors[modKey] = nil
+    end
+    self:RefreshUI()
+end
+
+function MR:GetHeaderBackgroundColor(modKey)
+    if self.db.profile.headerBackgroundColors and self.db.profile.headerBackgroundColors[modKey] then
+        return self.db.profile.headerBackgroundColors[modKey]
+    end
+    return nil
+end
+
+function MR:SetHeaderBackgroundColor(modKey, hexColor)
+    if not self.db.profile.headerBackgroundColors then
+        self.db.profile.headerBackgroundColors = {}
+    end
+    self.db.profile.headerBackgroundColors[modKey] = hexColor
+    self:RefreshUI()
+    self:RepopulateConfigFrame()
+end
+
+function MR:ResetHeaderBackgroundColor(modKey)
+    if self.db.profile.headerBackgroundColors then
+        self.db.profile.headerBackgroundColors[modKey] = nil
     end
     self:RefreshUI()
 end

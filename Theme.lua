@@ -331,12 +331,32 @@ end
 
 function ns.LeftAccent(parent, r, g, b)
     r, g, b = r or COLORS.accent[1], g or COLORS.accent[2], b or COLORS.accent[3]
-    local tex = parent:CreateTexture(nil, "BORDER")
-    tex:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
-    tex:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 0, 0)
-    tex:SetWidth(3)
-    tex:SetColorTexture(r, g, b, 1)
-    return tex
+
+    local group = CreateFrame("Frame", nil, parent)
+    group:SetAllPoints(parent)
+
+    local topRule = group:CreateTexture(nil, "BORDER")
+    topRule:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, 0)
+    topRule:SetWidth(44)
+    topRule:SetHeight(2)
+    topRule:SetColorTexture(r, g, b, 0.95)
+    group.topRule = topRule
+
+    local notch = group:CreateTexture(nil, "BORDER")
+    notch:SetPoint("TOPLEFT", topRule, "BOTTOMRIGHT", 4, 0)
+    notch:SetWidth(10)
+    notch:SetHeight(2)
+    notch:SetColorTexture(r, g, b, 0.65)
+    group.notch = notch
+
+    local glow = group:CreateTexture(nil, "ARTWORK")
+    glow:SetPoint("TOPLEFT", topRule, "BOTTOMLEFT", 0, -2)
+    glow:SetWidth(58)
+    glow:SetHeight(8)
+    glow:SetColorTexture(r, g, b, 0.14)
+    group.glow = glow
+
+    return group
 end
 
 function ns.TitleBar(parent, height)
@@ -598,7 +618,8 @@ function ns.OptionsSlider(body, yOff, label, min, max, step, getVal, setVal, fil
     lbl:SetJustifyH("LEFT")
     lbl:SetWordWrap(false)
 
-    yOff = yOff - 11
+    local labelGap = math.max(14, (fontSize or 9) + 4)
+    yOff = yOff - labelGap
 
     local bodyWidth = body:GetWidth()
     if not bodyWidth or bodyWidth <= 0 then

@@ -221,6 +221,38 @@ IsMainTextOnlyMode = function()
     return (MR.db.profile.frameAlpha or 1.0) <= 0.01
 end
 
+local function GetTextOnlyHeaderAlpha()
+    if not (MR and MR.db and MR.db.profile) then
+        return 0
+    end
+
+    if not IsMainTextOnlyMode() then
+        return 0
+    end
+
+    if MR.db.profile.keepHeadersVisibleInTextMode == false then
+        return 0
+    end
+
+    return 0.32
+end
+
+local function ShouldShowIcons()
+    if not (MR and MR.db and MR.db.profile) then
+        return false
+    end
+
+    return MR.db.profile.keepIconsVisibleInTextMode ~= false
+end
+
+local function ShouldShowSectionHeaders()
+    if not (MR and MR.db and MR.db.profile) then
+        return false
+    end
+
+    return MR.db.profile.keepHeadersVisibleInTextMode ~= false
+end
+
 local MODULE_ICON_FALLBACKS = {
     currencies          = { texture = "Interface\\Icons\\INV_Misc_Coin_17" },
     midnight_activities = { texture = "Interface\\Icons\\Ability_Creature_Cursed_04" },
@@ -2646,6 +2678,12 @@ function MR:BuildSection(mod, yOff, xOff, colW, col, parent, widgetBucket, opts)
     opts = opts or {}
     local transparent = IsMainTextOnlyMode()
     local frameAlpha = MR.db.profile.frameAlpha or 1.0
+    local showSectionHeaders = ShouldShowSectionHeaders()
+    local textOnlyHeaderAlpha = showSectionHeaders and GetTextOnlyHeaderAlpha() or 0
+    local headerAlpha = transparent and textOnlyHeaderAlpha or ((showSectionHeaders and 0.90 or 0) * frameAlpha)
+    local dividerAlpha = transparent and (0.50 * textOnlyHeaderAlpha) or ((showSectionHeaders and 0.09 or 0) * frameAlpha)
+    local showSoftHeaders = transparent and textOnlyHeaderAlpha > 0
+    local showIcons = ShouldShowIcons()
     local stats = GetModuleStats(self, mod)
     local isOpen = stats and stats.isOpen
     local secTotal = stats and stats.totalRows or 0
@@ -2687,7 +2725,12 @@ function MR:BuildSection(mod, yOff, xOff, colW, col, parent, widgetBucket, opts)
 
     local hdrBg = hdrFrame:CreateTexture(nil, "BACKGROUND")
     hdrBg:SetAllPoints()
-    hdrBg:SetColorTexture(0.08, 0.09, 0.12, transparent and 0 or (0.90 * frameAlpha))
+    local customHeaderBg = MR.GetHeaderBackgroundColor and MR:GetHeaderBackgroundColor(mod.key) or nil
+    local hdrR, hdrG, hdrB = 0.08, 0.09, 0.12
+    if customHeaderBg then
+        hdrR, hdrG, hdrB = hex(customHeaderBg)
+    end
+    hdrBg:SetColorTexture(hdrR, hdrG, hdrB, headerAlpha)
 
     local hdrHover = hdrFrame:CreateTexture(nil, "BORDER")
     hdrHover:SetAllPoints()
@@ -2697,7 +2740,7 @@ function MR:BuildSection(mod, yOff, xOff, colW, col, parent, widgetBucket, opts)
     local customColor = MR:GetHeaderColor(mod.key)
     local headerColor = customColor or mod.labelColor or "#ffffff"
     local lr,lg,lb = hex(headerColor)
-    local accentA = transparent and 0 or frameAlpha
+    local accentA = transparent and textOnlyHeaderAlpha or ((showSectionHeaders and 1 or 0) * frameAlpha)
     local accentR, accentG, accentB = lr, lg, lb
     if allDone then
         accentR, accentG, accentB = COL.complete[1], COL.complete[2], COL.complete[3]
@@ -2707,15 +2750,17 @@ function MR:BuildSection(mod, yOff, xOff, colW, col, parent, widgetBucket, opts)
     iconPlate:SetSize(math.max(HEADER_HEIGHT - 6, 12), math.max(HEADER_HEIGHT - 6, 12))
     iconPlate:SetPoint("LEFT", hdrFrame, "LEFT", 4, 0)
     iconPlate:SetBackdrop(MakeBackdrop())
-    iconPlate:SetBackdropColor(accentR, accentG, accentB, transparent and 0 or (0.16 * frameAlpha))
-    iconPlate:SetBackdropBorderColor(accentR, accentG, accentB, transparent and 0 or (0.50 * frameAlpha))
+    local iconPlateBgAlpha = transparent and (showSoftHeaders and (0.16 * accentA) or 0) or ((showSectionHeaders and 0.16 or 0) * frameAlpha)
+    local iconPlateBorderAlpha = transparent and (showSoftHeaders and (0.50 * accentA) or 0) or ((showSectionHeaders and 0.50 or 0) * frameAlpha)
+    iconPlate:SetBackdropColor(accentR, accentG, accentB, iconPlateBgAlpha)
+    iconPlate:SetBackdropBorderColor(accentR, accentG, accentB, iconPlateBorderAlpha)
 
-    local iconInfo = (not transparent and ShouldShowModuleHeaderIcon(mod.key)) and GetModuleIconInfo(mod) or nil
+    local iconInfo = showIcons and ShouldShowModuleHeaderIcon(mod.key) and GetModuleIconInfo(mod) or nil
     local icon = hdrFrame:CreateTexture(nil, "ARTWORK")
     icon:SetSize(math.max(HEADER_HEIGHT - 12, 9), math.max(HEADER_HEIGHT - 12, 9))
     icon:SetPoint("CENTER", iconPlate, "CENTER", 0, 0)
     local hasHeaderIcon = ApplyIconToTexture(icon, iconInfo, { 0.14, 0.86, 0.14, 0.86 })
-    iconPlate:SetShown(hasHeaderIcon)
+    iconPlate:SetShown(hasHeaderIcon and (showIcons or showSectionHeaders))
 
     local lbl = hdrFrame:CreateFontString(nil, "OVERLAY")
     lbl:SetFont(FONT_HEADERS, math.max(9, GetFontSize()), "OUTLINE")
@@ -2791,7 +2836,7 @@ function MR:BuildSection(mod, yOff, xOff, colW, col, parent, widgetBucket, opts)
         hdrFrame._pressed = false
     end)
     hdrFrame:SetScript("OnEnter", function()
-        hdrHover:SetColorTexture(1, 1, 1, transparent and 0 or (0.05 * frameAlpha))
+        hdrHover:SetColorTexture(1, 1, 1, transparent and (0.10 * textOnlyHeaderAlpha) or ((showSectionHeaders and 0.05 or 0) * frameAlpha))
         GameTooltip:SetOwner(hdrFrame, "ANCHOR_RIGHT")
         GameTooltip:SetText(mod.label, 1, 1, 1)
         GameTooltip:AddLine(L["Tooltip_ExpandCollapse"], 0.5, 0.5, 0.5)
@@ -2815,7 +2860,7 @@ function MR:BuildSection(mod, yOff, xOff, colW, col, parent, widgetBucket, opts)
     div:SetPoint("TOPRIGHT", card, "TOPRIGHT", 0, -localY)
     div:SetHeight(1)
     div:SetBackdrop(MakeBackdrop(false))
-    div:SetBackdropColor(1, 1, 1, transparent and 0 or (0.09 * frameAlpha))
+    div:SetBackdropColor(1, 1, 1, dividerAlpha)
     table.insert(widgetBucket, div)
 
     if isOpen then
@@ -2846,6 +2891,7 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
     parent = parent or self.content
     widgetBucket = widgetBucket or self.widgets
     local transparent = IsMainTextOnlyMode()
+    local showIcons = ShouldShowIcons()
     local frameAlpha = MR.db.profile.frameAlpha or 1.0
     local isAutoTracked = row.autoTracked
         or (row.questIds ~= nil)
@@ -3038,7 +3084,7 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
     end
 
     local isCurrencyModule = mod and (mod.key == "currencies" or mod.key == "pvp_currencies")
-    local showRowIcon = (not transparent) and isCurrencyModule
+    local showRowIcon = showIcons and isCurrencyModule
     local rowIconInfo = showRowIcon and GetRowIconInfo(mod, row) or nil
     local iconSize = math.max(ROW_HEIGHT - 8, 12)
     local rowIcon = rowFrame:CreateTexture(nil, "ARTWORK")
@@ -3763,7 +3809,27 @@ function MR:PopulateConfigFrame(f)
             end,
             0.40, 0.40, 0.40, 8, nil, cfgFs)
 
-        Gap(4)
+        Gap(2)
+        yOff = OptionsCheckbox(body, yOff,
+            L["Config_ShowIcons"] or "Show Icons",
+            function() return MR.db.profile.keepIconsVisibleInTextMode ~= false end,
+            function(v)
+                MR.db.profile.keepIconsVisibleInTextMode = v
+                MR:RefreshUI()
+            end,
+            0.40, 0.40, 0.40, 8, nil, cfgFs)
+
+        Gap(2)
+        yOff = OptionsCheckbox(body, yOff,
+            L["Config_ShowSectionHeaders"] or "Show Section Headers",
+            function() return MR.db.profile.keepHeadersVisibleInTextMode ~= false end,
+            function(v)
+                MR.db.profile.keepHeadersVisibleInTextMode = v
+                MR:RefreshUI()
+            end,
+            0.40, 0.40, 0.40, 8, nil, cfgFs)
+
+        Gap(8)
         yOff = OptionsSlider(body, yOff, L["SCALE"], 0.5, 2.0, 0.05,
             function() return MR.db.profile.scale or 1.0 end,
             function(v)
@@ -3850,6 +3916,27 @@ function MR:PopulateConfigFrame(f)
                 return dr, dg, db
             end,
             L["Config_HeaderColor"])
+        swatch:SetPoint("RIGHT", anchorRight, "LEFT", -2, 0)
+        return swatch
+    end
+
+    local function BuildHeaderBackgroundSwatch(parent, key, anchorRight)
+        local currentColor = MR.GetHeaderBackgroundColor and MR:GetHeaderBackgroundColor(key) or nil
+        local r, g, b = 0.08, 0.09, 0.12
+        if currentColor then
+            r, g, b = hex(currentColor)
+        end
+        local swatch = OptionsColorSwatch(parent, r, g, b,
+            function(nr, ng, nb)
+                local hx = string.format("#%02x%02x%02x", nr*255, ng*255, nb*255)
+                MR:SetHeaderBackgroundColor(key, hx)
+            end,
+            function()
+                MR:ResetHeaderBackgroundColor(key)
+                MR:PopulateConfigFrame(f)
+                return 0.08, 0.09, 0.12
+            end,
+            L["Config_HeaderBackgroundColor"] or "Header Background")
         swatch:SetPoint("RIGHT", anchorRight, "LEFT", -2, 0)
         return swatch
     end
@@ -4056,7 +4143,8 @@ function MR:PopulateConfigFrame(f)
                 end)
 
                 local hideBtn = BuildHideCompleteBtn(headerFr, key, headerFr)
-                local colorSwatch = BuildColorSwatch(headerFr, key, mod, hideBtn)
+                local bgSwatch = BuildHeaderBackgroundSwatch(headerFr, key, hideBtn)
+                local colorSwatch = BuildColorSwatch(headerFr, key, mod, bgSwatch)
 
                 local lbl = headerFr:CreateFontString(nil, "OVERLAY")
                 lbl:SetFont(FONT_ROWS, 10, "OUTLINE")
@@ -4158,7 +4246,8 @@ function MR:PopulateConfigFrame(f)
             table.insert(_cfgRows, { key = key, frame = headerFr, label = mod.label })
 
             local hideBtn = BuildHideCompleteBtn(headerFr, key, arrowBtn)
-            local colorSwatch = BuildColorSwatch(headerFr, key, mod, hideBtn)
+            local bgSwatch = BuildHeaderBackgroundSwatch(headerFr, key, hideBtn)
+            local colorSwatch = BuildColorSwatch(headerFr, key, mod, bgSwatch)
 
             local lbl = headerFr:CreateFontString(nil, "OVERLAY")
             lbl:SetFont(FONT_ROWS, 10, "OUTLINE")
@@ -4294,6 +4383,7 @@ function MR:PopulateConfigFrame(f)
         end)
         Btn(L["Config_ResetColors"], function()
             MR.db.profile.headerColors = {}
+            MR.db.profile.headerBackgroundColors = {}
             MR.db.profile.rowColors = {}
             MR:RefreshUI()
             MR:PopulateConfigFrame(f)
