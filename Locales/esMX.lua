@@ -148,8 +148,10 @@ L["Delves_Bountiful_Note"] = "Profundidades pródigas completadas hoy de entre l
 L["Delves_Bountiful_Today"] = "%s — pródigas de hoy:"
 L["Delves_No_Bountiful"] = "No se detectaron profundidades pródigas."
 L["Count_Active"] = "%d activos"
+L["Collected"] = "Collected"
 L["Count_InBags"] = "%d en mochilas"
 L["Looted"] = "Despojado"
+L["Used"] = "Used"
 
 -- Great Vault
 L["GreatVault_Title"] = "Gran Cámara"

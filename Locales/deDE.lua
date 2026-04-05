@@ -153,8 +153,10 @@ L["Delves_Bountiful_Note"] = "Heute abgeschlossene Großzügigen Tiefen von den 
 L["Delves_Bountiful_Today"] = "%s - heutige Großzügigen Tiefen:"
 L["Delves_No_Bountiful"] = "Keine Großzügigen Tiefen erkannt."
 L["Count_Active"] = "%d Aktiv"
+L["Collected"] = "Collected"
 L["Count_InBags"] = "%d in der Tasche"
 L["Looted"] = "gelootet"
+L["Used"] = "Used"
 
 -- Great Vault
 L["GreatVault_Title"] = "Große Schatzkammer"

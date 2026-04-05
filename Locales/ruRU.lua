@@ -148,8 +148,10 @@ L["Delves_Bountiful_Note"] = "Количество завершенных мно
 L["Delves_Bountiful_Today"] = "%s - сегодняшние многообещающие:"
 L["Delves_No_Bountiful"] = "Многообещающие вылазки не обнаружены."
 L["Count_Active"] = "%d активных"
+L["Collected"] = "Collected"
 L["Count_InBags"] = "%d в сумках"
 L["Looted"] = "Добыто"
+L["Used"] = "Used"
 
 -- Great Vault
 L["GreatVault_Title"] = "Великое хранилище"

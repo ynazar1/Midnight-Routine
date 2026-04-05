@@ -148,8 +148,10 @@ L["Delves_Bountiful_Note"] = "Gouffres abondants terminés aujourd'hui parmi ceu
 L["Delves_Bountiful_Today"] = "%s — abondants d'aujourd'hui :"
 L["Delves_No_Bountiful"] = "Aucun gouffre abondant détecté."
 L["Count_Active"] = "%d actif(s)"
+L["Collected"] = "Collected"
 L["Count_InBags"] = "%d dans les sacs"
 L["Looted"] = "Ramassé"
+L["Used"] = "Used"
 
 -- Great Vault
 L["GreatVault_Title"] = "Grande chambre forte"

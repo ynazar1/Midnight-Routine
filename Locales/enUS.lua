@@ -149,6 +149,8 @@ L["Delves_Bountiful_Today"] = "%s — today's bountifuls:"
 L["Delves_No_Bountiful"] = "No bountiful delves detected."
 L["Count_Active"] = "%d active"
 L["Count_InBags"] = "%d in bags"
+L["Collected"] = "Collected"
+L["Used"] = "Used"
 L["Looted"] = "Looted"
 
 -- Great Vault

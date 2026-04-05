@@ -9,10 +9,7 @@ local DELVERS_BOUNTY_ITEMS = {
 }
 
 local QUEST_DELVERS_BOUNTY_LOOTED = 86371
-local QUEST_DELVERS_BOUNTY_USED_IDS = {
-    87287,
-    92887,
-}
+local QUEST_DELVERS_BOUNTY_USED = 92887
 local QUEST_NULLAEUS              = 93525
 local L = LibStub("AceLocale-3.0"):GetLocale("MidnightRoutine")
 
@@ -87,36 +84,21 @@ local function ScanExpansion(exp, mdb)
     mdb["bountiful_exp"]     = total > 0 and exp.label or nil
 end
 
-local function GetDelversBountyCount()
-    if not (C_Item and C_Item.GetItemCount) then
-        return 0
-    end
-
-    local total = 0
-    for _, itemID in ipairs(DELVERS_BOUNTY_ITEMS) do
-        total = total + (C_Item.GetItemCount(itemID) or 0)
-    end
-
-    return total
-end
-
-local function IsAnyQuestCompleted(questIds)
-    if not (C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted) then
+local function IsQuestCompleted(questId)
+    if not (C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted and questId) then
         return false
     end
 
-    for _, questID in ipairs(questIds) do
-        if C_QuestLog.IsQuestFlaggedCompleted(questID) then
-            return true
-        end
-    end
-
-    return false
+    return C_QuestLog.IsQuestFlaggedCompleted(questId) == true
 end
 
 local bountifulRow
 local bountyRow
 local lastScan = 0
+
+local function IsBountyRowComplete(done)
+    return (tonumber(done) or 0) >= 1
+end
 
 MR:RegisterModule({
     key         = "delves",
@@ -175,31 +157,21 @@ MR:RegisterModule({
             if mdb["delve_t8"]   ~= 0 then mdb["delve_t8"] = 0 end
         end
 
-        local bountyCount = GetDelversBountyCount()
-        if mdb["delve_bounty_count"] ~= bountyCount then
-            mdb["delve_bounty_count"] = bountyCount
-        end
+        local bountyLooted = IsQuestCompleted(QUEST_DELVERS_BOUNTY_LOOTED) and 1 or 0
 
-        local bountyLooted = C_QuestLog.IsQuestFlaggedCompleted(QUEST_DELVERS_BOUNTY_LOOTED) and 1 or 0
-        if mdb["delve_bounty_looted"] ~= bountyLooted then
-            mdb["delve_bounty_looted"] = bountyLooted
-        end
+        local bountyUsedDetected = IsQuestCompleted(QUEST_DELVERS_BOUNTY_USED) and 1 or 0
+        local bountyProgress = (bountyUsedDetected > 0 or (tonumber(mdb["delve_bounty"]) or 0) > 0) and 1 or 0
 
-        local bountyUsedDetected = IsAnyQuestCompleted(QUEST_DELVERS_BOUNTY_USED_IDS) and 1 or 0
-        local bountyUsed = (bountyUsedDetected > 0 or (mdb["delve_bounty"] or 0) > 0) and 1 or 0
-        if mdb["delve_bounty"] ~= bountyUsed then
-            mdb["delve_bounty"] = bountyUsed
+        if mdb["delve_bounty"] ~= bountyProgress then
+            mdb["delve_bounty"] = bountyProgress
         end
 
         if bountyRow then
-            if bountyUsed > 0 then
-                bountyRow.countText = L["Done"] or "Done"
+            if bountyProgress == 1 then
+                bountyRow.countText = L["Used"] or "Used"
                 bountyRow.countColor = { 0.40, 0.85, 0.40 }
-            elseif bountyCount > 0 then
-                bountyRow.countText = string.format(L["Count_InBags"] or "%d in bags", bountyCount)
-                bountyRow.countColor = { 1.00, 0.82, 0.30 }
             elseif bountyLooted > 0 then
-                bountyRow.countText = L["Looted"] or "Looted"
+                bountyRow.countText = L["Collected"] or "Collected"
                 bountyRow.countColor = { 1.00, 0.82, 0.30 }
             else
                 bountyRow.countText = nil
@@ -229,8 +201,9 @@ MR:RegisterModule({
             note    = L["Delves_Bounty_Note"],
             countWidth = 84,
             itemId  = DELVERS_BOUNTY_ITEMS[1],
-            questIds = QUEST_DELVERS_BOUNTY_USED_IDS,
+            noItemProgress = true,
             liveKey = "delve_bounty",
+            completeFunc = IsBountyRowComplete,
         },
         {
             key      = "delve_nullaeus",
