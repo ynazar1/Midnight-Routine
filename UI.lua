@@ -2330,6 +2330,10 @@ function MR:EnsureDetachedFrame(mod)
 end
 
 function MR:RefreshUI()
+    if self.ShouldDeferForCombat and self:ShouldDeferForCombat("refreshUI") then
+        return
+    end
+
     if not self.frame or not self.content then return end
 
     RecalcLayout()

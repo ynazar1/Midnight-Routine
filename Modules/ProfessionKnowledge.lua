@@ -1080,6 +1080,10 @@ function MR:EnsureGatheringLocationsShown()
 end
 
 function MR:RefreshGatheringLocationsFrame()
+    if self.ShouldDeferForCombat and self:ShouldDeferForCombat("gatheringFrame") then
+        return
+    end
+
     if gatheringLocationsFrame and gatheringLocationsFrame:IsShown() then RebuildGatheringLocationsFrame() end
 end
 

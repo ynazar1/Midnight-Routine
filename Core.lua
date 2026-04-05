@@ -237,6 +237,10 @@ local function HasAnyTableValue(t)
     return type(t) == "table" and next(t) ~= nil
 end
 
+local function IsInRestrictedCombat()
+    return InCombatLockdown and InCombatLockdown()
+end
+
 local function IsAltBoardModule(mod)
     if not mod or not mod.key then
         return false
@@ -260,6 +264,114 @@ function MR:RegisterExpansion(def)
         shortLabel = def.shortLabel or existing.shortLabel or def.label or def.key,
         order = def.order or existing.order or 100,
     }
+end
+
+function MR:QueueCombatDeferredUpdate(flag)
+    if not flag then
+        return
+    end
+
+    self._combatDeferred = self._combatDeferred or {}
+    self._combatDeferred[flag] = true
+
+    if self.RegisterEvent then
+        self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnded")
+    end
+end
+
+function MR:ShouldDeferForCombat(flag)
+    if not IsInRestrictedCombat() then
+        return false
+    end
+
+    self:QueueCombatDeferredUpdate(flag)
+    return true
+end
+
+function MR:QueueDeferredProgressUpdate(moduleKey, rowKey, value, maxVal)
+    self._combatDeferredProgress = self._combatDeferredProgress or {}
+    self._combatDeferredProgress[#self._combatDeferredProgress + 1] = {
+        moduleKey = moduleKey,
+        rowKey = rowKey,
+        value = value,
+        maxVal = maxVal,
+    }
+    self:QueueCombatDeferredUpdate("refreshUI")
+end
+
+function MR:FlushCombatDeferredUpdates()
+    if IsInRestrictedCombat() then
+        return
+    end
+
+    local pending = self._combatDeferred
+    local deferredProgress = self._combatDeferredProgress
+
+    self._combatDeferred = nil
+    self._combatDeferredProgress = nil
+
+    if pending and pending.weeklyReset and self.DoWeeklyReset then
+        self:DoWeeklyReset()
+        pending.weeklyReset = nil
+    end
+
+    if pending and pending.dailyReset and self.DoDailyReset then
+        self:DoDailyReset()
+        pending.dailyReset = nil
+    end
+
+    if pending and pending.instanceVisibility and self.UpdateInstanceFrameVisibility then
+        self:UpdateInstanceFrameVisibility()
+        pending.instanceVisibility = nil
+    end
+
+    if pending and pending.playerProfessions and self.RefreshPlayerProfessions then
+        self:RefreshPlayerProfessions()
+        pending.playerProfessions = nil
+    end
+
+    if pending and pending.professionConcentration and self.RefreshProfessionConcentration then
+        self:RefreshProfessionConcentration()
+        pending.professionConcentration = nil
+    end
+
+    if deferredProgress then
+        for _, entry in ipairs(deferredProgress) do
+            if not self.db.char.progress[entry.moduleKey] then
+                self.db.char.progress[entry.moduleKey] = {}
+            end
+            self.db.char.progress[entry.moduleKey][entry.rowKey] = math.max(0, math.min(entry.value, entry.maxVal))
+        end
+    end
+
+    if pending and pending.scan and self.Scan then
+        self:Scan()
+        pending.scan = nil
+    end
+
+    if pending and pending.refreshUI and self.RefreshUI then
+        self:RefreshUI()
+    end
+
+    if pending and pending.gatheringFrame and self.RefreshGatheringLocationsFrame then
+        self:RefreshGatheringLocationsFrame()
+    end
+
+    if pending and pending.rares and self.RefreshRares then
+        self:RefreshRares()
+    end
+
+    if pending and pending.renown and self.RefreshRenown then
+        self:RefreshRenown()
+    end
+end
+
+function MR:OnCombatEnded()
+    if self.UnregisterEvent then
+        self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    end
+
+    self:FlushCombatDeferredUpdates()
 end
 
 function MR:GetModuleExpansionKey(modOrKey)
@@ -683,6 +795,11 @@ function MR:SetAltBoardCharacterHidden(charKey, hidden)
 end
 
 function MR:SetProgress(moduleKey, rowKey, value, maxVal)
+    if self:ShouldDeferForCombat("refreshUI") then
+        self:QueueDeferredProgressUpdate(moduleKey, rowKey, value, maxVal)
+        return
+    end
+
     if not self.db.char.progress[moduleKey] then
         self.db.char.progress[moduleKey] = {}
     end
@@ -1261,6 +1378,10 @@ local function ConcentrationDataEqual(a, b)
 end
 
 function MR:RefreshPlayerProfessions()
+    if self:ShouldDeferForCombat("playerProfessions") then
+        return
+    end
+
     wipe(self.playerProfessions)
     if C_TradeSkillUI and C_TradeSkillUI.GetAllProfessionTradeSkillLines then
         local lines = C_TradeSkillUI.GetAllProfessionTradeSkillLines()
@@ -1295,6 +1416,10 @@ end
 
 function MR:RefreshProfessionConcentration()
     if not (self and self.db and self.db.char) then
+        return false
+    end
+
+    if self:ShouldDeferForCombat("professionConcentration") then
         return false
     end
 
@@ -1353,6 +1478,10 @@ local function WriteProgress(progress, modKey, rowKey, val, overrides)
 end
 
 function MR:Scan()
+    if self:ShouldDeferForCombat("scan") then
+        return
+    end
+
     if self._scanSuppressedUntil and GetTime() < self._scanSuppressedUntil then
         return
     end
@@ -1424,7 +1553,7 @@ function MR:Scan()
                     if WriteProgress(progress, mod.key, row.key, val, self.db.char.manualOverrides) then dirty = true end
                 end
             end
-            if row.itemId then
+            if row.itemId and not row.noItemProgress then
                 local count = 0
                 if C_Item and C_Item.GetItemCount then
                     count = C_Item.GetItemCount(row.itemId, false, false, true) or 0
@@ -1558,11 +1687,18 @@ function MR:CheckDailyReset()
         return
     end
     if lastDailyAt > prevDailyAt + 300 then
+        if self:ShouldDeferForCombat("dailyReset") then
+            return
+        end
         self:DoDailyReset()
     end
 end
 
 function MR:DoDailyReset()
+    if self:ShouldDeferForCombat("dailyReset") then
+        return
+    end
+
     local ts = self:GetLastDailyTimestamp()
     if ts then self.db.char.lastDailyAt = ts end
     for _, mod in ipairs(self.modules) do
@@ -1618,11 +1754,18 @@ function MR:CheckWeeklyReset()
     end
 
     if lastResetAt > prevResetAt + 300 then
+        if self:ShouldDeferForCombat("weeklyReset") then
+            return
+        end
         self:DoWeeklyReset()
     end
 end
 
 function MR:DoWeeklyReset()
+    if self:ShouldDeferForCombat("weeklyReset") then
+        return
+    end
+
     local ts = self:GetLastResetTimestamp()
     if ts then self.db.char.lastResetAt = ts end
 
@@ -1855,6 +1998,10 @@ function MR:ToggleManagedWindows()
 end
 
 function MR:UpdateInstanceFrameVisibility()
+    if self:ShouldDeferForCombat("instanceVisibility") then
+        return
+    end
+
     if not self.db then return end
 
     local shouldHide = self:ShouldHideFramesInCurrentInstance()

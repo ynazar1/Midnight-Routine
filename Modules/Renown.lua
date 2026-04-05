@@ -1138,6 +1138,10 @@ function MR:EnsureRenownShown()
 end
 
 function MR:RefreshRenown()
+    if self.ShouldDeferForCombat and self:ShouldDeferForCombat("renown") then
+        return
+    end
+
     RefreshRenownFrame()
 end
 
@@ -1156,6 +1160,6 @@ end
 
 function MR:OnRenownUpdate()
     if renownFrame and renownFrame:IsShown() then
-        RefreshRenownFrame()
+        self:RefreshRenown()
     end
 end

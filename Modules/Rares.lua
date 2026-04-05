@@ -1254,6 +1254,10 @@ function MR:SyncAllRareKills()
 end
 
 function MR:RefreshRares()
+    if self.ShouldDeferForCombat and self:ShouldDeferForCombat("rares") then
+        return
+    end
+
     RefreshRaresFrame()
 end
 
