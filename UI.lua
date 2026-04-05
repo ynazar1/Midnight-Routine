@@ -3147,10 +3147,15 @@ function MR:BuildRow(mod, row, done, yOff, collapsed, xOff, colW, parent, widget
         end
 
         if not isCurrencyRow and not hasCoordText then
-            local reservedWidth = math.min(
-                math.max(math.floor((countFS:GetStringWidth() or 0) + 8), 64),
-                math.floor(math.max(rowFrame:GetWidth() * 0.5, 64))
-            )
+            local reservedWidth
+            if type(row.countWidth) == "number" and row.countWidth > 0 then
+                reservedWidth = row.countWidth
+            else
+                reservedWidth = math.min(
+                    math.max(math.floor((countFS:GetStringWidth() or 0) + 8), 64),
+                    math.floor(math.max(rowFrame:GetWidth() * 0.5, 64))
+                )
+            end
             countFS:SetWidth(reservedWidth)
             lbl:ClearAllPoints()
             if hasRowIcon then

@@ -185,7 +185,8 @@ MR:RegisterModule({
             mdb["delve_bounty_looted"] = bountyLooted
         end
 
-        local bountyUsed = IsAnyQuestCompleted(QUEST_DELVERS_BOUNTY_USED_IDS) and 1 or 0
+        local bountyUsedDetected = IsAnyQuestCompleted(QUEST_DELVERS_BOUNTY_USED_IDS) and 1 or 0
+        local bountyUsed = (bountyUsedDetected > 0 or (mdb["delve_bounty"] or 0) > 0) and 1 or 0
         if mdb["delve_bounty"] ~= bountyUsed then
             mdb["delve_bounty"] = bountyUsed
         end
@@ -226,6 +227,7 @@ MR:RegisterModule({
             label   = L["Delves_Bounty_Label"],
             max     = 1,
             note    = L["Delves_Bounty_Note"],
+            countWidth = 84,
             itemId  = DELVERS_BOUNTY_ITEMS[1],
             questIds = QUEST_DELVERS_BOUNTY_USED_IDS,
             liveKey = "delve_bounty",
@@ -243,6 +245,7 @@ MR:RegisterModule({
             max     = 4,
             noMax   = true,
             note    = L["Delves_Bountiful_Note"],
+            countWidth = 84,
             liveKey = "bountiful_live",
             isVisible = function()
                 local mdb = MR.db.char.progress["delves"]
