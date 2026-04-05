@@ -151,7 +151,7 @@ L["Count_Active"] = "激活 %d"
 L["Collected"] = "Collected"
 L["Count_InBags"] = "背包中 %d"
 L["Looted"] = "已拾取"
-L["Used"] = "Used"
+L["Used"] = "已使用"
 
 -- Great Vault
 L["GreatVault_Title"] = "宏伟宝库"
