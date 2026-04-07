@@ -39,6 +39,7 @@ local HALDURON_WEEKLIES = {
     { quest = 93754, name = L["Halduron_MaisaraCaverns"]     },
     { quest = 93755, name = L["Halduron_DenOfNalorakk"]      },
     { quest = 93756, name = L["Halduron_BlindingVale"]       },
+    { quest = 93757, name = L["Halduron_VoidscarArena"]      },
     { quest = 95468, name = L["Halduron_HopeDarkestCorners"] },
 }
 
@@ -522,7 +523,7 @@ MR:RegisterModule({
             label    = L["Weekly_Halduron_Label"],
             max      = 1,
             note     = L["Weekly_Halduron_Note"],
-            questIds = { 93753, 93754, 93755, 93756, 95468 },
+            questIds = { 93753, 93754, 93755, 93756, 93757, 95468 },
             tooltipFunc = function(tip)
                 local completedVariants, activeVariants = CollectQuestVariants(HALDURON_WEEKLIES)
 
