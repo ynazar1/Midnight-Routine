@@ -1152,6 +1152,22 @@ function MR:SetWindowLayoutValue(key, value)
     end
 end
 
+function MR:GetManagedWindowOpen(key)
+    if not key then
+        return false
+    end
+
+    return self:GetWindowLayoutValue(key) == true
+end
+
+function MR:SetManagedWindowOpen(key, value)
+    if not key then
+        return
+    end
+
+    self:SetWindowLayoutValue(key, value and true or false)
+end
+
 function MR:GetHeaderColor(modKey)
     if self.db.profile.headerColors and self.db.profile.headerColors[modKey] then
         return self.db.profile.headerColors[modKey]
@@ -1897,9 +1913,9 @@ function MR:PersistManagedWindowState(state)
     if not self.db or not state then return end
 
     self.db.char.panelOpen = state.panel and true or false
-    self.db.profile.renownOpen = state.renown and true or false
-    self.db.profile.raresOpen = state.rares and true or false
-    self.db.profile.gatheringLocOpen = state.gathering and true or false
+    self:SetManagedWindowOpen("renownOpen", state.renown)
+    self:SetManagedWindowOpen("raresOpen", state.rares)
+    self:SetManagedWindowOpen("gatheringLocOpen", state.gathering)
 end
 
 function MR:SetManagedWindowRestoreState(state)
@@ -2105,7 +2121,7 @@ function MR:OnEnteringWorld()
 
     if not self.db.profile.firstSeen then
         self.db.char.panelOpen     = false
-        self.db.profile.renownOpen = false
+        self:SetManagedWindowOpen("renownOpen", false)
     end
 
     if not self.frame then
@@ -2132,13 +2148,13 @@ function MR:OnEnteringWorld()
         }, 1, "OnRenownUpdate")
     end
     if not shouldHideFrames and not temporarilyHidden then
-        if self.db.profile.renownOpen and self.EnsureRenownShown then
+        if self:GetManagedWindowOpen("renownOpen") and self.EnsureRenownShown then
             self:EnsureRenownShown()
         end
-        if self.db.profile.raresOpen and self.EnsureRaresShown then
+        if self:GetManagedWindowOpen("raresOpen") and self.EnsureRaresShown then
             self:EnsureRaresShown()
         end
-        if self.db.profile.gatheringLocOpen and self.EnsureGatheringLocationsShown then
+        if self:GetManagedWindowOpen("gatheringLocOpen") and self.EnsureGatheringLocationsShown then
             self:EnsureGatheringLocationsShown()
         end
     end

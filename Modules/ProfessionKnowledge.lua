@@ -466,7 +466,7 @@ local function BuildGatheringLocationsFrame(isRetry)
 
     local closeBtn = CloseButton(titleBar, function()
         frame:Hide()
-        if MR.db then MR.db.profile.gatheringLocOpen = false end
+        if MR.SetManagedWindowOpen then MR:SetManagedWindowOpen("gatheringLocOpen", false) end
     end)
 
     local gearBtn = HeaderIconButton(
@@ -1058,13 +1058,13 @@ end
 local function ToggleGatheringLocations()
     if not gatheringLocationsFrame then
         gatheringLocationsFrame = BuildGatheringLocationsFrame()
-        if MR.db then MR.db.profile.gatheringLocOpen = true end
+        if MR.SetManagedWindowOpen then MR:SetManagedWindowOpen("gatheringLocOpen", true) end
     elseif gatheringLocationsFrame:IsShown() then
         gatheringLocationsFrame:Hide()
-        if MR.db then MR.db.profile.gatheringLocOpen = false end
+        if MR.SetManagedWindowOpen then MR:SetManagedWindowOpen("gatheringLocOpen", false) end
     else
         gatheringLocationsFrame:Show()
-        if MR.db then MR.db.profile.gatheringLocOpen = true end
+        if MR.SetManagedWindowOpen then MR:SetManagedWindowOpen("gatheringLocOpen", true) end
     end
 end
 
@@ -1072,7 +1072,7 @@ MR.ToggleGatheringLocations = ToggleGatheringLocations
 
 function MR:ShowGatheringLocations()
     if not gatheringLocationsFrame then gatheringLocationsFrame = BuildGatheringLocationsFrame() else gatheringLocationsFrame:Show() end
-    if self.db then self.db.profile.gatheringLocOpen = true end
+    if self.SetManagedWindowOpen then self:SetManagedWindowOpen("gatheringLocOpen", true) end
 end
 
 function MR:EnsureGatheringLocationsShown()
@@ -1090,7 +1090,7 @@ end
 function MR:HideGatheringLocations(persistState)
     if gatheringLocationsFrame then gatheringLocationsFrame:Hide() end
     if gatheringCfgFrame then gatheringCfgFrame:Hide() end
-    if persistState ~= false and self.db then self.db.profile.gatheringLocOpen = false end
+    if persistState ~= false and self.db then self:SetManagedWindowOpen("gatheringLocOpen", false) end
 end
 
 function MR:RepopulateGatheringConfig()
@@ -1107,7 +1107,7 @@ eventFrame:SetScript("OnEvent", function(_, event, addonName)
     if event == "ADDON_LOADED" and addonName == "MidnightRoutine" then
         if MR.db then
             gatheringMinimized = MR.db.profile.gatheringMinimized or false
-            if MR.db.profile.gatheringLocOpen then MR:ShowGatheringLocations() end
+            if MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("gatheringLocOpen") then MR:ShowGatheringLocations() end
         end
         eventFrame:UnregisterEvent("ADDON_LOADED")
     end

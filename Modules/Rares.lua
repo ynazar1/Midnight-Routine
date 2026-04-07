@@ -346,7 +346,7 @@ BuildRaresFrame = function()
     local closeBtn = CloseButton(titleBar, function()
         f:Hide()
         if raresCfgFrame then raresCfgFrame:Hide() end
-        if MR.db then MR.db.profile.raresOpen = false end
+        if MR.SetManagedWindowOpen then MR:SetManagedWindowOpen("raresOpen", false) end
     end)
 
     local gearBtn = HeaderIconButton(
@@ -1197,7 +1197,7 @@ function MR:ToggleRares()
     else
         raresFrame:Show()
         MR.raresFrame = raresFrame
-        if self.db then self.db.profile.raresOpen = true end
+        if self.SetManagedWindowOpen then self:SetManagedWindowOpen("raresOpen", true) end
         raresFrame:SetScale((MR.db and MR.db.profile.raresScale) or 1.0)
         lastZoneKey = GetCurrentZoneKey()
         self:SyncAllRareKills()
@@ -1209,7 +1209,7 @@ function MR:HideRares(persistState)
     if raresFrame then raresFrame:Hide() end
     if raresCfgFrame then raresCfgFrame:Hide() end
     if persistState ~= false and self.db then
-        self.db.profile.raresOpen = false
+        self:SetManagedWindowOpen("raresOpen", false)
     end
 end
 
@@ -1230,7 +1230,7 @@ function MR:EnsureRaresShown()
         lastZoneKey = GetCurrentZoneKey()
         self:SyncAllRareKills()
         RefreshRaresFrame()
-        if self.db then self.db.profile.raresOpen = true end
+        if self.SetManagedWindowOpen then self:SetManagedWindowOpen("raresOpen", true) end
     end
 end
 

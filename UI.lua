@@ -3598,23 +3598,29 @@ function MR:PopulateConfigFrame(f)
             end, "#2ae7c6")
 
         Checkbox(L["Config_OpenRenown"],
-            function() return MR.db and MR.db.profile.renownOpen end,
+            function() return MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("renownOpen") end,
             function(v)
-                MR.db.profile.renownOpen = v
+                if MR.SetManagedWindowOpen then
+                    MR:SetManagedWindowOpen("renownOpen", v)
+                end
                 if MR.ToggleRenown then MR:ToggleRenown() end
             end, "#d9b82e")
 
         Checkbox(L["Config_OpenRares"],
-            function() return MR.db and MR.db.profile.raresOpen end,
+            function() return MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("raresOpen") end,
             function(v)
-                MR.db.profile.raresOpen = v
+                if MR.SetManagedWindowOpen then
+                    MR:SetManagedWindowOpen("raresOpen", v)
+                end
                 if MR.ToggleRares then MR:ToggleRares() end
             end, "#e05050")
 
         Checkbox(L["Profession_Knowledge"],
-            function() return MR.db and MR.db.profile.gatheringLocOpen end,
+            function() return MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("gatheringLocOpen") end,
             function(v)
-                MR.db.profile.gatheringLocOpen = v
+                if MR.SetManagedWindowOpen then
+                    MR:SetManagedWindowOpen("gatheringLocOpen", v)
+                end
                 if MR.ToggleGatheringLocations then MR:ToggleGatheringLocations() end
             end, "#c9853f")
 

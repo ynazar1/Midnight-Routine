@@ -35,9 +35,9 @@ local function BuildWelcomeScreen()
         pendingEnabled[mod.key] = MR:IsModuleEnabled(mod.key)
     end
 
-    pendingRenown   = MR.db and MR.db.profile.renownOpen     or false
-    pendingRares    = MR.db and MR.db.profile.raresOpen      or false
-    pendingGathering = MR.db and MR.db.profile.gatheringLocOpen or false
+    pendingRenown = MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("renownOpen") or false
+    pendingRares = MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("raresOpen") or false
+    pendingGathering = MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("gatheringLocOpen") or false
 
     local f = StyledFrame(UIParent, nil, "FULLSCREEN_DIALOG", 200)
     f:SetSize(310, 10)
@@ -335,12 +335,14 @@ local function BuildWelcomeScreen()
                 return
             end
 
-            local prevRenown = MR.db.profile.renownOpen
-            local prevRares = MR.db.profile.raresOpen
-            local prevGathering = MR.db.profile.gatheringLocOpen
+            local prevRenown = MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("renownOpen") or false
+            local prevRares = MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("raresOpen") or false
+            local prevGathering = MR.GetManagedWindowOpen and MR:GetManagedWindowOpen("gatheringLocOpen") or false
 
             if pendingRenown ~= prevRenown then
-                MR.db.profile.renownOpen = pendingRenown
+                if MR.SetManagedWindowOpen then
+                    MR:SetManagedWindowOpen("renownOpen", pendingRenown)
+                end
                 if pendingRenown and MR.ToggleRenown then
                     MR:ToggleRenown()
                 elseif not pendingRenown and MR.HideRenown then
@@ -348,7 +350,9 @@ local function BuildWelcomeScreen()
                 end
             end
             if pendingRares ~= prevRares then
-                MR.db.profile.raresOpen = pendingRares
+                if MR.SetManagedWindowOpen then
+                    MR:SetManagedWindowOpen("raresOpen", pendingRares)
+                end
                 if pendingRares and MR.ToggleRares then
                     MR:ToggleRares()
                 elseif not pendingRares and MR.HideRares then
@@ -356,7 +360,9 @@ local function BuildWelcomeScreen()
                 end
             end
             if pendingGathering ~= prevGathering then
-                MR.db.profile.gatheringLocOpen = pendingGathering
+                if MR.SetManagedWindowOpen then
+                    MR:SetManagedWindowOpen("gatheringLocOpen", pendingGathering)
+                end
                 if pendingGathering and MR.ToggleGatheringLocations then
                     MR:ToggleGatheringLocations()
                 elseif not pendingGathering and MR.HideGatheringLocations then

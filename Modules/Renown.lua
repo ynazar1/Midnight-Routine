@@ -287,7 +287,7 @@ local function BuildRenownFrame()
     local closeBtn = CloseButton(titleBar, function()
         f:Hide()
         if renownCfgFrame then renownCfgFrame:Hide() end
-        if MR.db then MR.db.profile.renownOpen = false end
+        if MR.SetManagedWindowOpen then MR:SetManagedWindowOpen("renownOpen", false) end
     end)
 
     local gearBtn = HeaderIconButton(
@@ -1112,7 +1112,7 @@ function MR:ToggleRenown()
     else
         renownFrame:Show()
         MR.renownFrame = renownFrame
-        if self.db then self.db.profile.renownOpen = true end
+        if self.SetManagedWindowOpen then self:SetManagedWindowOpen("renownOpen", true) end
         RefreshRenownFrame()
     end
 end
@@ -1121,7 +1121,7 @@ function MR:HideRenown(persistState)
     if renownFrame then renownFrame:Hide() end
     if renownCfgFrame then renownCfgFrame:Hide() end
     if persistState ~= false and self.db then
-        self.db.profile.renownOpen = false
+        self:SetManagedWindowOpen("renownOpen", false)
     end
 end
 
@@ -1132,7 +1132,7 @@ function MR:EnsureRenownShown()
     if not renownFrame:IsShown() then
         renownFrame:Show()
         MR.renownFrame = renownFrame
-        if self.db then self.db.profile.renownOpen = true end
+        if self.SetManagedWindowOpen then self:SetManagedWindowOpen("renownOpen", true) end
     end
     RefreshRenownFrame()
 end
