@@ -16,12 +16,14 @@ local L = LibStub("AceLocale-3.0"):GetLocale("MidnightRoutine")
 local EXPANSIONS = {
     {
         label  = L["Midnight"],
-        mapIds = { [2395]=true, [2405]=true, [2413]=true, [2437]=true },
+        mapIds = { [2393]=true, [2395]=true, [2405]=true, [2413]=true, [2424]=true, [2437]=true },
         zones  = {
-            { uiMapId = 2395, delves = { {8426,8425,93384}, {8438,8437,93372} } },
-            { uiMapId = 2405, delves = { {8432,8431,93428}, {8430,8429,93427} } },
-            { uiMapId = 2413, delves = { {8434,8433,93421}, {8436,8435,93416} } },
-            { uiMapId = 2437, delves = { {8444,8443,93409}, {8442,8441,93410} } },
+            { uiMapId = 2393, delves = { {8426,8425,91186}, {8440,8439,92444} } },
+            { uiMapId = 2424, delves = { {8428,8427,91182} } },
+            { uiMapId = 2395, delves = { {8438,8437,91189} } },
+            { uiMapId = 2405, delves = { {8432,8431,91184}, {8430,8429,91183} } },
+            { uiMapId = 2413, delves = { {8434,8433,91185}, {8436,8435,91187} } },
+            { uiMapId = 2437, delves = { {8444,8443,91188}, {8442,8441,91190} } },
         },
     },
     {
