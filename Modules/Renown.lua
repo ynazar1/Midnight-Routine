@@ -246,6 +246,7 @@ local function BuildRenownFrame()
     local PAD       = 12
     local HEADER_H  = 24
     local minimized = db.renownMinimized or false
+    local headerBottom = MR.GetManagedHeaderPosition and MR:GetManagedHeaderPosition() == "bottom"
     local hidden    = db.renownHiddenFactions or {}
     local visCount  = 0
     for _, fac in ipairs(GetOrderedFactions()) do
@@ -265,9 +266,25 @@ local function BuildRenownFrame()
     local titleBar = TitleBar(f, HEADER_H)
     f.titleBar = titleBar
     titleBar:SetBackdropColor(0.06, 0.05, 0.02, 1)
+    titleBar:ClearAllPoints()
+    if headerBottom then
+        titleBar:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
+        titleBar:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 0)
+    else
+        titleBar:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+        titleBar:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
+    end
     titleBar:SetScript("OnDragStart", function() f:StartMoving() end)
     titleBar:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
+        if headerBottom then
+            local left = f:GetLeft()
+            local bottom = f:GetBottom()
+            if left and bottom and MR.db then
+                MR:SetWindowLayoutValue("renownPos", { point = "BOTTOMLEFT", relPoint = "BOTTOMLEFT", x = left, y = bottom })
+                return
+            end
+        end
         local pt, _, rp, x, y = f:GetPoint()
         if MR.db then MR:SetWindowLayoutValue("renownPos", { point = pt, relPoint = rp, x = x, y = y }) end
     end)
@@ -323,8 +340,13 @@ local function BuildRenownFrame()
         local cr, cg, cb = GetFactionColor(faction)
 
         local rowFrame = CreateFrame("Button", nil, f, "BackdropTemplate")
-        rowFrame:SetPoint("TOPLEFT",  f, "TOPLEFT",  PAD,       -yOff)
-        rowFrame:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD,      -yOff)
+        if headerBottom then
+            rowFrame:SetPoint("BOTTOMLEFT",  f, "BOTTOMLEFT",  PAD,  yOff)
+            rowFrame:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -PAD, yOff)
+        else
+            rowFrame:SetPoint("TOPLEFT",  f, "TOPLEFT",  PAD,  -yOff)
+            rowFrame:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD, -yOff)
+        end
         rowFrame:SetHeight(ROW_SPACE - 8)
         rowFrame:RegisterForClicks("LeftButtonUp")
         rowFrame:SetBackdrop(MakeBackdrop())
@@ -435,8 +457,13 @@ local function BuildRenownFrame()
 
     local divider = f:CreateTexture(nil, "ARTWORK")
     f.divider = divider
-    divider:SetPoint("BOTTOMLEFT",  f, "BOTTOMLEFT",  3, 3)
-    divider:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -3, 3)
+    if headerBottom then
+        divider:SetPoint("BOTTOMLEFT",  f, "BOTTOMLEFT",  3, HEADER_H + 3)
+        divider:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -3, HEADER_H + 3)
+    else
+        divider:SetPoint("BOTTOMLEFT",  f, "BOTTOMLEFT",  3, 3)
+        divider:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -3, 3)
+    end
     divider:SetHeight(1)
     divider:SetColorTexture(0.55, 0.42, 0.08, 0.3)
 
@@ -493,18 +520,102 @@ local function BuildRenownFrame()
         end
 
         if isMin then
-            local left = f:GetLeft()
-            local top  = f:GetTop()
-            if left and top then
-                f:ClearAllPoints()
-                f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
-                if MR.db then
-                    MR:SetWindowLayoutValue("renownPos", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
+            if headerBottom then
+                local left = f:GetLeft()
+                local bottom = f:GetBottom()
+                if left and bottom then
+                    f:ClearAllPoints()
+                    f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+                    if MR.db then
+                        MR:SetWindowLayoutValue("renownPos", { point = "BOTTOMLEFT", relPoint = "BOTTOMLEFT", x = left, y = bottom })
+                    end
+                end
+            else
+                local left = f:GetLeft()
+                local top  = f:GetTop()
+                if left and top then
+                    f:ClearAllPoints()
+                    f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+                    if MR.db then
+                        MR:SetWindowLayoutValue("renownPos", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
+                    end
                 end
             end
-            f:SetHeight(HEADER_H)
+            if MR.IsManagedAnimatedMinimizeEnabled and MR:IsManagedAnimatedMinimizeEnabled() then
+                local startHeight = f:GetHeight()
+                local targetHeight = HEADER_H
+                local delta = targetHeight - startHeight
+                f._mrAnimTick = 0
+                f:SetScript("OnUpdate", function(self, dt)
+                    self._mrAnimTick = (self._mrAnimTick or 0) + (dt or 0)
+                    local duration = math.min(0.18, math.max(0.06, math.abs(delta) / 1600))
+                    local progress = math.min(self._mrAnimTick / duration, 1)
+                    local eased = 1 - ((1 - progress) * (1 - progress) * (1 - progress))
+                    self:SetHeight(startHeight + (delta * eased))
+                    if progress >= 1 then
+                        self:SetHeight(targetHeight)
+                        self._mrAnimTick = nil
+                        self:SetScript("OnUpdate", db.renownShimmer ~= false and function(selfFrame, tickDt)
+                            selfFrame.shimmerElapsed = selfFrame.shimmerElapsed + tickDt
+                            local pulse = 0.06 + 0.04 * math.sin(selfFrame.shimmerElapsed * 2)
+                            if selfFrame.UpdatePanelHeaderVisibility then
+                                selfFrame:UpdatePanelHeaderVisibility(MR:IsCursorWithinBounds(selfFrame))
+                            end
+                            for _, row in pairs(selfFrame.factionRows) do
+                                row.shimmer:SetAlpha(pulse)
+                            end
+                        end or function(selfFrame)
+                            if selfFrame.UpdatePanelHeaderVisibility then
+                                selfFrame:UpdatePanelHeaderVisibility(MR:IsCursorWithinBounds(selfFrame))
+                            end
+                        end)
+                    end
+                end)
+            else
+                f:SetHeight(HEADER_H)
+            end
         else
-            f:SetHeight(totalH)
+            if headerBottom then
+                local left = f:GetLeft()
+                local bottom = f:GetBottom()
+                if left and bottom then
+                    f:ClearAllPoints()
+                    f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+                end
+            end
+            if MR.IsManagedAnimatedMinimizeEnabled and MR:IsManagedAnimatedMinimizeEnabled() then
+                local startHeight = f:GetHeight()
+                local targetHeight = totalH
+                local delta = targetHeight - startHeight
+                f._mrAnimTick = 0
+                f:SetScript("OnUpdate", function(self, dt)
+                    self._mrAnimTick = (self._mrAnimTick or 0) + (dt or 0)
+                    local duration = math.min(0.18, math.max(0.06, math.abs(delta) / 1600))
+                    local progress = math.min(self._mrAnimTick / duration, 1)
+                    local eased = 1 - ((1 - progress) * (1 - progress) * (1 - progress))
+                    self:SetHeight(startHeight + (delta * eased))
+                    if progress >= 1 then
+                        self:SetHeight(targetHeight)
+                        self._mrAnimTick = nil
+                        self:SetScript("OnUpdate", db.renownShimmer ~= false and function(selfFrame, tickDt)
+                            selfFrame.shimmerElapsed = selfFrame.shimmerElapsed + tickDt
+                            local pulse = 0.06 + 0.04 * math.sin(selfFrame.shimmerElapsed * 2)
+                            if selfFrame.UpdatePanelHeaderVisibility then
+                                selfFrame:UpdatePanelHeaderVisibility(MR:IsCursorWithinBounds(selfFrame))
+                            end
+                            for _, row in pairs(selfFrame.factionRows) do
+                                row.shimmer:SetAlpha(pulse)
+                            end
+                        end or function(selfFrame)
+                            if selfFrame.UpdatePanelHeaderVisibility then
+                                selfFrame:UpdatePanelHeaderVisibility(MR:IsCursorWithinBounds(selfFrame))
+                            end
+                        end)
+                    end
+                end)
+            else
+                f:SetHeight(totalH)
+            end
             RefreshRenownFrame()
         end
     end

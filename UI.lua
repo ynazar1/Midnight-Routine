@@ -1641,6 +1641,270 @@ SetWindowLayoutValue = function(key, value)
     MR.db.profile[key] = value
 end
 
+local function GetMainHeaderPosition()
+    if GetWindowLayoutValue and GetWindowLayoutValue("mainHeaderPosition") == "bottom" then
+        return "bottom"
+    end
+
+    return "top"
+end
+
+local function IsAnimatedMinimizeEnabled()
+    if GetWindowLayoutValue then
+        return GetWindowLayoutValue("animatedMinimize") == true
+    end
+
+    return false
+end
+
+function MR:GetManagedHeaderPosition()
+    return GetMainHeaderPosition()
+end
+
+function MR:IsManagedAnimatedMinimizeEnabled()
+    return IsAnimatedMinimizeEnabled()
+end
+
+local function IsMainHeaderAtBottom()
+    return GetMainHeaderPosition() == "bottom"
+end
+
+local function GetMainFrameExpandedHeight()
+    return math.max(PANEL_MIN_HEIGHT, math.min(MR.db.profile.height or 400, PANEL_MAX_HEIGHT))
+end
+
+local function GetMainFrameCollapsedHeight()
+    return GetMainHeaderHeight()
+end
+
+local function GetStoredMainFrameCollapsedAnchor()
+    local pos = GetWindowLayoutValue("collapsedPosition")
+    if pos and pos.point then
+        return pos
+    end
+
+    return GetWindowLayoutValue("position")
+end
+
+local function SetStoredMainFrameCollapsedAnchor(pos)
+    if not pos or not pos.point then
+        return
+    end
+
+    SetWindowLayoutValue("collapsedPosition", {
+        point = pos.point,
+        relPoint = pos.relPoint or pos.point,
+        x = pos.x or 0,
+        y = pos.y or 0,
+    })
+end
+
+local function CaptureMainFrameAnchor(frame, anchorMode)
+    if not frame then
+        return nil
+    end
+
+    local left, top, bottom = frame:GetLeft(), frame:GetTop(), frame:GetBottom()
+    if not left then
+        return GetWindowLayoutValue("position")
+    end
+
+    if anchorMode == "bottom" and bottom then
+        return { point = "BOTTOMLEFT", relPoint = "BOTTOMLEFT", x = left, y = bottom }
+    end
+
+    if top then
+        return { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top }
+    end
+
+    return GetWindowLayoutValue("position")
+end
+
+local function ApplyMainFrameAnchor(frame, anchorMode, preserveScreenPosition)
+    if not frame then
+        return
+    end
+
+    local pos = preserveScreenPosition and CaptureMainFrameAnchor(frame, anchorMode) or GetWindowLayoutValue("position")
+    if not pos or not pos.point then
+        frame:ClearAllPoints()
+        frame:SetPoint("CENTER")
+        return
+    end
+
+    frame:ClearAllPoints()
+    frame:SetPoint(pos.point, UIParent, pos.relPoint or pos.point, pos.x or 0, pos.y or 0)
+    SetWindowLayoutValue("position", {
+        point = pos.point,
+        relPoint = pos.relPoint or pos.point,
+        x = pos.x or 0,
+        y = pos.y or 0,
+    })
+end
+
+local function ApplyExplicitMainFrameAnchor(frame, pos)
+    if not frame or not pos or not pos.point then
+        return
+    end
+
+    frame:ClearAllPoints()
+    frame:SetPoint(pos.point, UIParent, pos.relPoint or pos.point, pos.x or 0, pos.y or 0)
+end
+
+local function GetBottomHeaderCollapseTarget(frame)
+    local movedSinceExpand = MR and MR._mainFrameMovedSinceExpand == true
+    local anchor
+
+    if movedSinceExpand then
+        anchor = CaptureMainFrameAnchor(frame, "bottom")
+    else
+        anchor = (MR and MR._mainCollapsedAnchorBeforeExpand) or GetStoredMainFrameCollapsedAnchor()
+    end
+
+    if not (anchor and anchor.point) then
+        anchor = CaptureMainFrameAnchor(frame, "bottom")
+    end
+
+    if anchor and anchor.point then
+        SetStoredMainFrameCollapsedAnchor(anchor)
+    end
+
+    if MR then
+        MR._mainCollapsedAnchorBeforeExpand = nil
+        MR._mainFrameMovedSinceExpand = false
+    end
+
+    return anchor
+end
+
+local function ApplyMainFrameLayout(frame)
+    if not frame then
+        return
+    end
+
+    local titleBar = MR and MR._titleBar
+    local scrollBg = MR and MR._scrollBg
+    local scroll = MR and MR.scroll
+    local track = MR and MR._scrollTrack
+    local dragger = MR and MR._dragger
+    local expansionDropdown = MR and MR.expansionDropdown
+    local headerHeight = titleBar and titleBar:GetHeight() or GetMainHeaderHeight()
+    local headerBottom = IsMainHeaderAtBottom()
+
+    if titleBar then
+        titleBar:ClearAllPoints()
+        if headerBottom then
+            titleBar:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
+            titleBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+        else
+            titleBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+            titleBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+        end
+    end
+
+    if scrollBg then
+        scrollBg:ClearAllPoints()
+        if headerBottom then
+            scrollBg:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+            scrollBg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, headerHeight)
+        else
+            scrollBg:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -headerHeight)
+            scrollBg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+        end
+    end
+
+    if scroll then
+        scroll:ClearAllPoints()
+        if headerBottom then
+            scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -4)
+            scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -9, headerHeight + 6)
+        else
+            scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -(headerHeight + 6))
+            scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -9, 4)
+        end
+    end
+
+    if track and scroll then
+        track:ClearAllPoints()
+        track:SetPoint("TOPLEFT", scroll, "TOPRIGHT", 1, 0)
+        track:SetPoint("BOTTOMLEFT", scroll, "BOTTOMRIGHT", 1, 0)
+    end
+
+    if dragger then
+        dragger:ClearAllPoints()
+        if headerBottom then
+            dragger:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+        else
+            dragger:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+        end
+    end
+
+    if expansionDropdown then
+        expansionDropdown:ClearAllPoints()
+        if headerBottom then
+            expansionDropdown:SetPoint("TOPRIGHT", frame, "BOTTOMRIGHT", -4, 0)
+        else
+            expansionDropdown:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT", -4, 0)
+        end
+    end
+
+    ApplyMainFrameAnchor(frame, GetMainHeaderPosition(), true)
+end
+
+local function SetMainFrameChromeVisible(visible)
+    if MR.scroll then MR.scroll:SetShown(visible) end
+    if MR._scrollBg then MR._scrollBg:SetShown(visible) end
+    if MR._scrollTrack then MR._scrollTrack:SetShown(visible) end
+    if MR._dragger then
+        MR._dragger:SetShown(visible and not (MR.db and MR.db.profile and MR.db.profile.minimized))
+    end
+end
+
+local mainFrameAnimator = CreateFrame("Frame")
+mainFrameAnimator:Hide()
+
+local function StopMainFrameAnimation()
+    mainFrameAnimator:SetScript("OnUpdate", nil)
+    mainFrameAnimator:Hide()
+end
+
+local function AnimateMainFrameHeight(targetHeight, onFinished)
+    local frame = MR and MR.frame
+    if not frame then
+        if onFinished then onFinished() end
+        return
+    end
+
+    local startHeight = frame:GetHeight() or targetHeight
+    local delta = targetHeight - startHeight
+    if math.abs(delta) < 1 then
+        frame:SetHeight(targetHeight)
+        if onFinished then onFinished() end
+        return
+    end
+
+    StopMainFrameAnimation()
+    mainFrameAnimator:Show()
+    local elapsed = 0
+    local duration = math.min(0.18, math.max(0.06, math.abs(delta) / 1600))
+    mainFrameAnimator:SetScript("OnUpdate", function(_, dt)
+        if not MR or not MR.frame then
+            StopMainFrameAnimation()
+            return
+        end
+
+        elapsed = elapsed + (dt or 0)
+        local progress = math.min(elapsed / duration, 1)
+        local eased = 1 - ((1 - progress) * (1 - progress) * (1 - progress))
+        frame:SetHeight(startHeight + (delta * eased))
+        if progress >= 1 then
+            frame:SetHeight(targetHeight)
+            StopMainFrameAnimation()
+            if onFinished then onFinished() end
+        end
+    end)
+end
+
 function MR:BuildUI()
     RefreshFonts()
     if self.frame then self.frame:Show() return end
@@ -1660,7 +1924,7 @@ function MR:BuildUI()
     f:SetMovable(true)
     f:SetClampedToScreen(true)
 
-    local p = GetWindowLayoutValue("position")
+    local p = (MR.db.profile.minimized and GetStoredMainFrameCollapsedAnchor()) or GetWindowLayoutValue("position")
     if p and p.point then
         f:SetPoint(p.point, UIParent, p.relPoint or p.point, p.x or 0, p.y or 0)
     else
@@ -1673,19 +1937,13 @@ function MR:BuildUI()
         MR:Scan()
     end)
 
-    local HEADER_H = 36
-
     local scrollBg = f:CreateTexture(nil, "BACKGROUND")
-    scrollBg:SetPoint("TOPLEFT",     f, "TOPLEFT",     0, -HEADER_H)
-    scrollBg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0,   0)
     ApplyBackgroundTexture(scrollBg, COL.bg[1], COL.bg[2], COL.bg[3], 0.96)
     MR._scrollBg = scrollBg
 
     local titleBar = CreateFrame("Frame", nil, f, "BackdropTemplate")
     MR._titleBar = titleBar
-    titleBar:SetPoint("TOPLEFT")
-    titleBar:SetPoint("TOPRIGHT")
-    titleBar:SetHeight(HEADER_H)
+    titleBar:SetHeight(GetMainHeaderHeight())
     titleBar:SetBackdrop(MakeBackdrop())
     if ns.HookBackdropFrame then ns.HookBackdropFrame(titleBar) end
     titleBar:SetBackdropColor(0.03, 0.06, 0.12, 0.98)
@@ -1697,8 +1955,17 @@ function MR:BuildUI()
     end)
     titleBar:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
-        local pt, _, rp, x, y = f:GetPoint()
-        SetWindowLayoutValue("position", { point = pt, relPoint = rp, x = x, y = y })
+        local pos = CaptureMainFrameAnchor(f, GetMainHeaderPosition())
+        if pos then
+            if MR.db.profile.minimized then
+                SetStoredMainFrameCollapsedAnchor(pos)
+            else
+                SetWindowLayoutValue("position", pos)
+                if IsMainHeaderAtBottom() then
+                    MR._mainFrameMovedSinceExpand = true
+                end
+            end
+        end
     end)
     if MR.ApplyPanelHeaderAutoHide then MR:ApplyPanelHeaderAutoHide(f, titleBar) end
 
@@ -1823,27 +2090,45 @@ function MR:BuildUI()
     self.UpdateMinimizeVisual = UpdateMinimizeVisual
 
     local function ApplyMinimizeState()
-        if MR.db.profile.minimized then
-            local left = f:GetLeft()
-            local top  = f:GetTop()
-            if left and top then
-                f:ClearAllPoints()
-                f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
-    SetWindowLayoutValue("position", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
+        local collapsed = MR.db.profile.minimized == true
+        local targetHeight = collapsed and GetMainFrameCollapsedHeight() or GetMainFrameExpandedHeight()
+        local useAnimation = IsAnimatedMinimizeEnabled()
+
+        if collapsed and IsMainHeaderAtBottom() then
+            local collapsedPos = GetBottomHeaderCollapseTarget(f)
+            ApplyExplicitMainFrameAnchor(f, collapsedPos)
+        elseif not collapsed and IsMainHeaderAtBottom() then
+            local collapsedPos = GetStoredMainFrameCollapsedAnchor()
+            if collapsedPos and collapsedPos.point then
+                MR._mainCollapsedAnchorBeforeExpand = collapsedPos
+                MR._mainFrameMovedSinceExpand = false
+                ApplyExplicitMainFrameAnchor(f, collapsedPos)
             end
-            if MR.scroll       then MR.scroll:Hide()       end
-            if MR._scrollBg    then MR._scrollBg:Hide()    end
-            if MR._scrollTrack then MR._scrollTrack:Hide() end
-            if MR._dragger     then MR._dragger:Hide()     end
-            f:SetHeight(HEADER_H)
-        else
-            if MR.scroll       then MR.scroll:Show()       end
-            if MR._scrollBg    then MR._scrollBg:Show()    end
-            if MR._scrollTrack then MR._scrollTrack:Show() end
-            if MR._dragger     then MR._dragger:Show()     end
-            MR:RefreshUI()
         end
-        UpdateMinimizeVisual()
+
+        ApplyMainFrameLayout(f)
+        if collapsed then
+            if MR._dragger then MR._dragger:Hide() end
+        else
+            SetMainFrameChromeVisible(true)
+        end
+
+        local function finalize()
+            if collapsed then
+                SetMainFrameChromeVisible(false)
+            else
+                SetMainFrameChromeVisible(true)
+            end
+            UpdateMinimizeVisual()
+        end
+
+        if useAnimation then
+            AnimateMainFrameHeight(targetHeight, finalize)
+        else
+            StopMainFrameAnimation()
+            f:SetHeight(targetHeight)
+            finalize()
+        end
     end
     self.ApplyMinimizeState = ApplyMinimizeState
 
@@ -1969,6 +2254,7 @@ function MR:BuildUI()
         title:SetFont(FONT_HEADERS, math.max(8, metrics.fontSize - 2), "OUTLINE")
         titleCount:SetFont(FONT_ROWS, math.max(8, metrics.fontSize - 2), "OUTLINE")
         warbandText:SetFont(FONT_HEADERS, math.max(8, metrics.fontSize - 2), "OUTLINE")
+        ApplyMainFrameLayout(f)
     end
     self.RefreshMainHeaderChrome = RefreshMainHeaderChrome
     RefreshMainHeaderChrome()
@@ -1977,12 +2263,9 @@ function MR:BuildUI()
         width = 150,
         height = 16,
     })
-    expansionDropdown:SetPoint("BOTTOMRIGHT", f, "TOPRIGHT", -4, 0)
     self.expansionDropdown = expansionDropdown
 
     local scroll = CreateFrame("ScrollFrame", nil, f)
-    scroll:SetPoint("TOPLEFT",     f, "TOPLEFT", 0, -(HEADER_H + 6))
-    scroll:SetPoint("BOTTOMRIGHT", f,        "BOTTOMRIGHT", -9,  4)
     scroll:EnableMouseWheel(true)
     self.scroll = scroll
 
@@ -2109,7 +2392,6 @@ function MR:BuildUI()
 
     local dragger = CreateFrame("Frame", nil, f)
     dragger:SetSize(12, 12)
-    dragger:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 1)
     dragger:SetFrameLevel(f:GetFrameLevel() + 10)
     dragger:EnableMouse(true)
 
@@ -2181,6 +2463,7 @@ function MR:BuildUI()
     end)
     self._tickFrame = tickFrame
 
+    ApplyMainFrameLayout(f)
     self:RefreshUI()
     ApplyTheme()
 end
@@ -2346,11 +2629,7 @@ function MR:RefreshUI()
     if self.expansionDropdown and self.expansionDropdown.Update then
         self.expansionDropdown:Update()
     end
-    if self.scroll then
-        self.scroll:ClearAllPoints()
-        self.scroll:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 0, -42)
-        self.scroll:SetPoint("BOTTOMRIGHT", self.frame, "BOTTOMRIGHT", -9, 4)
-    end
+    ApplyMainFrameLayout(self.frame)
 
     for _, w in ipairs(self.widgets or {}) do
         w:Hide(); w:SetParent(nil)
@@ -2439,14 +2718,12 @@ function MR:RefreshUI()
     if self.UpdateScrollBar then self.UpdateScrollBar() end
 
     if MR.db.profile.minimized then
-        if self.scroll       then self.scroll:Hide()       end
-        if self._scrollBg    then self._scrollBg:Hide()    end
-        if self._scrollTrack then self._scrollTrack:Hide() end
-        if self._dragger     then self._dragger:Hide()     end
-        self.frame:SetHeight(24)
+        StopMainFrameAnimation()
+        SetMainFrameChromeVisible(false)
+        self.frame:SetHeight(GetMainFrameCollapsedHeight())
         if self.UpdateMinimizeVisual then self.UpdateMinimizeVisual() end
     else
-        if self._dragger then self._dragger:Show() end
+        SetMainFrameChromeVisible(true)
     end
 
     self.detachedFrames = self.detachedFrames or {}
@@ -3527,6 +3804,15 @@ function MR:PopulateConfigFrame(f)
             MR.gatheringLocationsFrame:ClearAllPoints()
             RestoreFramePos(MR.gatheringLocationsFrame, "gatheringLocPos", 860, 0)
         end
+        if MR.RebuildRaresFrame then
+            MR:RebuildRaresFrame()
+        end
+        if MR.RebuildRenownFrame then
+            MR:RebuildRenownFrame()
+        end
+        if MR.RebuildGatheringLocationsFrame then
+            MR:RebuildGatheringLocationsFrame()
+        end
         MR:PopulateConfigFrame(f)
     end
 
@@ -3730,6 +4016,97 @@ function MR:PopulateConfigFrame(f)
             0.16, 0.75, 0.78, 8, nil, cfgFs)
 
         Gap(6)
+        yOff = OptionsSlider(body, yOff, L["SCALE"], 0.5, 2.0, 0.05,
+            function() return MR.db.profile.scale or 1.0 end,
+            function(v)
+                if MR.db.profile.syncWindowScale then
+                    MR:ApplyScaleToAll(v)
+                else
+                    MR.db.profile.scale = v
+                    if MR.frame then MR.frame:SetScale(v) end
+                end
+            end,
+            0.55, 0.22, 0.82, 8, nil, cfgFs)
+
+        Gap(2)
+        yOff = OptionsCheckbox(body, yOff, L["Config_SyncScale"],
+            function() return MR.db.profile.syncWindowScale end,
+            function(v)
+                MR.db.profile.syncWindowScale = v
+                if v then MR:ApplyScaleToAll(MR.db.profile.scale or 1.0) end
+                MR:PopulateConfigFrame(f)
+            end,
+            0.55, 0.22, 0.82, 8, nil, cfgFs)
+
+        Gap(4); Divider()
+        SectionLabel(L["Config_MainHeaderPosition"] or "Main Header Position")
+
+        local headerModeY = yOff - 4
+        local headerModeBtnW = math.floor((contentW - 2) / 2)
+        local function CreateHeaderModeButton(label, value, x)
+            local btn = CreateFrame("Button", nil, body, "BackdropTemplate")
+            btn:SetSize(headerModeBtnW, 18)
+            btn:SetPoint("TOPLEFT", body, "TOPLEFT", x, headerModeY)
+            btn:SetBackdrop(MakeBackdrop())
+            local active = GetMainHeaderPosition() == value
+            btn:SetBackdropColor(active and 0.12 or 0.05, active and 0.30 or 0.09, active and 0.24 or 0.16, 1)
+            btn:SetBackdropBorderColor(active and 0.24 or 0.16, active and 0.82 or 0.28, active and 0.70 or 0.36, 1)
+
+            local lbl = btn:CreateFontString(nil, "OVERLAY")
+            lbl:SetFont(FONT_ROWS, cfgFs, "OUTLINE")
+            lbl:SetPoint("CENTER")
+            lbl:SetText(label)
+            lbl:SetTextColor(active and 0.92 or 0.70, active and 1.0 or 0.78, active and 0.94 or 0.74)
+
+            btn:SetScript("OnClick", function()
+                if GetMainHeaderPosition() == value then
+                    return
+                end
+                SetWindowLayoutValue("mainHeaderPosition", value)
+                ApplyMainFrameLayout(MR.frame)
+                MR:RefreshUI()
+                if MR.RebuildRaresFrame then
+                    MR:RebuildRaresFrame()
+                end
+                if MR.RebuildRenownFrame then
+                    MR:RebuildRenownFrame()
+                end
+                if MR.RebuildGatheringLocationsFrame then
+                    MR:RebuildGatheringLocationsFrame()
+                end
+                MR:PopulateConfigFrame(f)
+            end)
+            btn:SetScript("OnEnter", function()
+                if GetMainHeaderPosition() ~= value then
+                    btn:SetBackdropColor(0.08, 0.20, 0.25, 1)
+                    btn:SetBackdropBorderColor(0.24, 0.74, 0.68, 1)
+                    lbl:SetTextColor(0.92, 0.98, 0.96)
+                end
+            end)
+            btn:SetScript("OnLeave", function()
+                local selected = GetMainHeaderPosition() == value
+                btn:SetBackdropColor(selected and 0.12 or 0.05, selected and 0.30 or 0.09, selected and 0.24 or 0.16, 1)
+                btn:SetBackdropBorderColor(selected and 0.24 or 0.16, selected and 0.82 or 0.28, selected and 0.70 or 0.36, 1)
+                lbl:SetTextColor(selected and 0.92 or 0.70, selected and 1.0 or 0.78, selected and 0.94 or 0.74)
+            end)
+        end
+
+        CreateHeaderModeButton(L["Config_MainHeaderTop"] or "Top / Grow Down", "top", 8)
+        CreateHeaderModeButton(L["Config_MainHeaderBottom"] or "Bottom / Grow Up", "bottom", 8 + headerModeBtnW + 2)
+        yOff = yOff - 30
+
+        Gap(2)
+        yOff = OptionsCheckbox(body, yOff,
+            L["Config_AnimatedMinimize"] or "Animated Minimize / Restore",
+            function() return IsAnimatedMinimizeEnabled() end,
+            function(v)
+                SetWindowLayoutValue("animatedMinimize", v and true or false)
+            end,
+            0.55, 0.22, 0.82, 8, nil, cfgFs)
+
+        Gap(4); Divider()
+
+        Gap(6)
         yOff = OptionsSlider(body, yOff, L["Config_FontSize"], FONT_SIZE_MIN, FONT_SIZE_MAX, 1,
             function() return GetFontSize() end,
             function(v)
@@ -3843,29 +4220,6 @@ function MR:PopulateConfigFrame(f)
                 MR:RefreshUI()
             end,
             0.40, 0.40, 0.40, 8, nil, cfgFs)
-
-        Gap(8)
-        yOff = OptionsSlider(body, yOff, L["SCALE"], 0.5, 2.0, 0.05,
-            function() return MR.db.profile.scale or 1.0 end,
-            function(v)
-                if MR.db.profile.syncWindowScale then
-                    MR:ApplyScaleToAll(v)
-                else
-                    MR.db.profile.scale = v
-                    if MR.frame then MR.frame:SetScale(v) end
-                end
-            end,
-            0.55, 0.22, 0.82, 8, nil, cfgFs)
-
-        Gap(2)
-        yOff = OptionsCheckbox(body, yOff, L["Config_SyncScale"],
-            function() return MR.db.profile.syncWindowScale end,
-            function(v)
-                MR.db.profile.syncWindowScale = v
-                if v then MR:ApplyScaleToAll(MR.db.profile.scale or 1.0) end
-                MR:PopulateConfigFrame(f)
-            end,
-            0.55, 0.22, 0.82, 8, nil, cfgFs)
     end
 
     if activePage == "modules" then

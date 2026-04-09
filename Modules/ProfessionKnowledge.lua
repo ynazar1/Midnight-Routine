@@ -426,7 +426,36 @@ local function BuildGatheringLocationsFrame(isRetry)
     local width = db.gatheringWidth or DEFAULT_W
     local height = db.gatheringHeight or DEFAULT_H
     local minimized = db.gatheringMinimized or false
+    local headerBottom = MR.GetManagedHeaderPosition and MR:GetManagedHeaderPosition() == "bottom"
     gatheringMinimized = minimized
+
+    local function ApplyFrameHeight(frame, targetHeight)
+        if not (MR.IsManagedAnimatedMinimizeEnabled and MR:IsManagedAnimatedMinimizeEnabled()) then
+            frame:SetHeight(targetHeight)
+            return
+        end
+
+        local startHeight = frame:GetHeight() or targetHeight
+        local delta = targetHeight - startHeight
+        if math.abs(delta) < 1 then
+            frame:SetHeight(targetHeight)
+            return
+        end
+
+        frame._mrAnimTick = 0
+        frame:SetScript("OnUpdate", function(self, dt)
+            self._mrAnimTick = (self._mrAnimTick or 0) + (dt or 0)
+            local duration = math.min(0.18, math.max(0.06, math.abs(delta) / 1600))
+            local progress = math.min(self._mrAnimTick / duration, 1)
+            local eased = 1 - ((1 - progress) * (1 - progress) * (1 - progress))
+            self:SetHeight(startHeight + (delta * eased))
+            if progress >= 1 then
+                self:SetHeight(targetHeight)
+                self._mrAnimTick = nil
+                self:SetScript("OnUpdate", nil)
+            end
+        end)
+    end
 
     local frame = StyledFrame(UIParent, nil, "MEDIUM", 10)
     frame:SetSize(width, minimized and TITLE_H or height)
@@ -441,14 +470,31 @@ local function BuildGatheringLocationsFrame(isRetry)
     local titleBar = TitleBar(frame, TITLE_H)
     frame.titleBar = titleBar
     titleBar:SetBackdropColor(0, 0, 0, 0)
+    titleBar:ClearAllPoints()
+    if headerBottom then
+        titleBar:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 0)
+        titleBar:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+    else
+        titleBar:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+        titleBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 0, 0)
+    end
     titleBar:SetScript("OnDragStart", function() if not db.gatheringLocked then frame:StartMoving() end end)
     titleBar:SetScript("OnDragStop", function()
         frame:StopMovingOrSizing()
-        local left = frame:GetLeft()
-        local top = frame:GetTop()
-        if left and top and MR.db then
-            MR:SetWindowLayoutValue("gatheringLocPos", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
-            return
+        if headerBottom then
+            local left = frame:GetLeft()
+            local bottom = frame:GetBottom()
+            if left and bottom and MR.db then
+                MR:SetWindowLayoutValue("gatheringLocPos", { point = "BOTTOMLEFT", relPoint = "BOTTOMLEFT", x = left, y = bottom })
+                return
+            end
+        else
+            local left = frame:GetLeft()
+            local top = frame:GetTop()
+            if left and top and MR.db then
+                MR:SetWindowLayoutValue("gatheringLocPos", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
+                return
+            end
         end
 
         local point, _, relPoint, x, y = frame:GetPoint()
@@ -485,8 +531,13 @@ local function BuildGatheringLocationsFrame(isRetry)
     titleTxt:SetText(L["ProfKnowledge_Title"])
 
     local scroll = CreateFrame("ScrollFrame", nil, frame)
-    scroll:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 0, -1)
-    scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 4)
+    if headerBottom then
+        scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -4)
+        scroll:SetPoint("BOTTOMRIGHT", titleBar, "TOPRIGHT", -8, 1)
+    else
+        scroll:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 0, -1)
+        scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 4)
+    end
     scroll:EnableMouseWheel(true)
     local content = CreateFrame("Frame", nil, scroll)
     content:SetWidth(width - 8)
@@ -745,7 +796,11 @@ local function BuildGatheringLocationsFrame(isRetry)
 
     local dragger = CreateFrame("Frame", nil, frame)
     dragger:SetSize(12, 12)
-    dragger:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    if headerBottom then
+        dragger:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -1)
+    else
+        dragger:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -1, 1)
+    end
     dragger:SetFrameLevel(frame:GetFrameLevel() + 10)
     dragger:EnableMouse(true)
     frame._dragger = dragger
@@ -792,26 +847,46 @@ local function BuildGatheringLocationsFrame(isRetry)
         if minBtn.RefreshLabel then minBtn:RefreshLabel() end
 
         if gatheringMinimized then
-            local left = frame:GetLeft()
-            local top  = frame:GetTop()
-            if left and top then
-                frame:ClearAllPoints()
-                frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
-                if MR.db then
-                    MR:SetWindowLayoutValue("gatheringLocPos", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
+            if headerBottom then
+                local left = frame:GetLeft()
+                local bottom = frame:GetBottom()
+                if left and bottom then
+                    frame:ClearAllPoints()
+                    frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+                    if MR.db then
+                        MR:SetWindowLayoutValue("gatheringLocPos", { point = "BOTTOMLEFT", relPoint = "BOTTOMLEFT", x = left, y = bottom })
+                    end
+                end
+            else
+                local left = frame:GetLeft()
+                local top  = frame:GetTop()
+                if left and top then
+                    frame:ClearAllPoints()
+                    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+                    if MR.db then
+                        MR:SetWindowLayoutValue("gatheringLocPos", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top })
+                    end
                 end
             end
             if frame._scroll then frame._scroll:Hide() end
             if frame._scrollTrack then frame._scrollTrack:Hide() end
             if frame._dragger then frame._dragger:Hide() end
-            frame:SetHeight(TITLE_H)
+            ApplyFrameHeight(frame, TITLE_H)
         else
+            if headerBottom then
+                local left = frame:GetLeft()
+                local bottom = frame:GetBottom()
+                if left and bottom then
+                    frame:ClearAllPoints()
+                    frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+                end
+            end
             if frame._scroll then frame._scroll:Show() end
             if frame._scrollTrack then frame._scrollTrack:Show() end
             if frame._dragger then frame._dragger:Show() end
             local savedH = db.gatheringHeight or DEFAULT_H
             local naturalH = TITLE_H + 1 + yOff + 6
-            frame:SetHeight(math.min(savedH, naturalH))
+            ApplyFrameHeight(frame, math.min(savedH, naturalH))
             if frame.UpdateScrollBar then frame.UpdateScrollBar() end
         end
     end

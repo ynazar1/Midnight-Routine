@@ -313,6 +313,46 @@ BuildRaresFrame = function()
     local singleZone = #visible == 1
     local cols       = (W >= 220) and COLS or 1
     local ROW_H      = GetRowH()
+    local headerBottom = MR.GetManagedHeaderPosition and MR:GetManagedHeaderPosition() == "bottom"
+
+    local function ApplyFrameHeight(frame, targetHeight)
+        if not (MR.IsManagedAnimatedMinimizeEnabled and MR:IsManagedAnimatedMinimizeEnabled()) then
+            frame:SetHeight(targetHeight)
+            return
+        end
+
+        local startHeight = frame:GetHeight() or targetHeight
+        local delta = targetHeight - startHeight
+        if math.abs(delta) < 1 then
+            frame:SetHeight(targetHeight)
+            return
+        end
+
+        frame._mrAnimTick = 0
+        frame:SetScript("OnUpdate", function(self, dt)
+            self._mrAnimTick = (self._mrAnimTick or 0) + (dt or 0)
+            local duration = math.min(0.18, math.max(0.06, math.abs(delta) / 1600))
+            local progress = math.min(self._mrAnimTick / duration, 1)
+            local eased = 1 - ((1 - progress) * (1 - progress) * (1 - progress))
+            self:SetHeight(startHeight + (delta * eased))
+            if progress >= 1 then
+                self:SetHeight(targetHeight)
+                self._mrAnimTick = nil
+                self:SetScript("OnUpdate", db.raresShimmer and function(frameSelf, tickDt)
+                    frameSelf.shimmerElapsed = frameSelf.shimmerElapsed + tickDt
+                    local pulse = 0.06 + 0.04 * math.sin(frameSelf.shimmerElapsed * 2)
+                    if frameSelf.UpdatePanelHeaderVisibility then
+                        frameSelf:UpdatePanelHeaderVisibility(MR:IsCursorWithinBounds(frameSelf))
+                    end
+                    for _, tex in ipairs(frameSelf.shimmerTextures) do tex:SetAlpha(pulse) end
+                end or function(frameSelf)
+                    if frameSelf.UpdatePanelHeaderVisibility then
+                        frameSelf:UpdatePanelHeaderVisibility(MR:IsCursorWithinBounds(frameSelf))
+                    end
+                end)
+            end
+        end)
+    end
 
     local f = StyledFrame(UIParent, nil, "MEDIUM", 10)
     f:SetSize(W, minimized and TITLE_H or H)
@@ -329,9 +369,25 @@ BuildRaresFrame = function()
     f.titleBar = titleBar
     titleBar:SetBackdropColor(0, 0, 0, 0)
     titleBar:SetClipsChildren(true)
+    titleBar:ClearAllPoints()
+    if headerBottom then
+        titleBar:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
+        titleBar:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 0)
+    else
+        titleBar:SetPoint("TOPLEFT", f, "TOPLEFT", 0, 0)
+        titleBar:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0)
+    end
     titleBar:SetScript("OnDragStart", function() if not db.raresLocked then f:StartMoving() end end)
     titleBar:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
+        if headerBottom then
+            local left = f:GetLeft()
+            local bottom = f:GetBottom()
+            if left and bottom and MR.db then
+                MR:SetWindowLayoutValue("raresPos", { point = "BOTTOMLEFT", relPoint = "BOTTOMLEFT", x = left, y = bottom })
+                return
+            end
+        end
         local pt, _, rp, x, y = f:GetPoint()
         if MR.db then MR:SetWindowLayoutValue("raresPos", { point = pt, relPoint = rp, x = x, y = y }) end
     end)
@@ -400,25 +456,48 @@ BuildRaresFrame = function()
         if isMin then
             if f._scroll      then f._scroll:Hide()   end
             if f._dragger     then f._dragger:Hide()   end
-            local left = f:GetLeft()
-            local top  = f:GetTop()
-            if left and top then
-                f:ClearAllPoints()
-                f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
-    if MR.db then MR:SetWindowLayoutValue("raresPos", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top }) end
+            if headerBottom then
+                local left = f:GetLeft()
+                local bottom = f:GetBottom()
+                if left and bottom then
+                    f:ClearAllPoints()
+                    f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+                    if MR.db then MR:SetWindowLayoutValue("raresPos", { point = "BOTTOMLEFT", relPoint = "BOTTOMLEFT", x = left, y = bottom }) end
+                end
+            else
+                local left = f:GetLeft()
+                local top  = f:GetTop()
+                if left and top then
+                    f:ClearAllPoints()
+                    f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+                    if MR.db then MR:SetWindowLayoutValue("raresPos", { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = left, y = top }) end
+                end
             end
-            f:SetHeight(TITLE_H)
+            ApplyFrameHeight(f, TITLE_H)
         else
+            if headerBottom then
+                local left = f:GetLeft()
+                local bottom = f:GetBottom()
+                if left and bottom then
+                    f:ClearAllPoints()
+                    f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+                end
+            end
             if f._scroll  then f._scroll:Show()  end
             if f._dragger then f._dragger:Show()  end
-            f:SetHeight(MR.db and MR.db.profile.raresHeight or DEFAULT_H)
+            ApplyFrameHeight(f, MR.db and MR.db.profile.raresHeight or DEFAULT_H)
         end
     end
     f.ApplyMinimized = ApplyMinimized
 
     local scroll = CreateFrame("ScrollFrame", nil, f)
-    scroll:SetPoint("TOPLEFT",     titleBar, "BOTTOMLEFT",  0, -1)
-    scroll:SetPoint("BOTTOMRIGHT", f,        "BOTTOMRIGHT", -8, 4)
+    if headerBottom then
+        scroll:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -4)
+        scroll:SetPoint("BOTTOMRIGHT", titleBar, "TOPRIGHT", -8, 1)
+    else
+        scroll:SetPoint("TOPLEFT",     titleBar, "BOTTOMLEFT",  0, -1)
+        scroll:SetPoint("BOTTOMRIGHT", f,        "BOTTOMRIGHT", -8, 4)
+    end
     scroll:EnableMouseWheel(true)
     f._scroll = scroll
 
@@ -1189,12 +1268,14 @@ function MR:ToggleRares()
         for k, v in pairs(MR.db.profile.raresCollapsed) do collapsed[k] = v end
     end
 
-    if not raresFrame then
-        raresFrame = BuildRaresFrame()
-    end
-    if raresFrame:IsShown() then
+    if raresFrame and raresFrame:IsShown() then
         self:HideRares()
     else
+        if raresFrame then
+            raresFrame:Hide()
+            raresFrame = nil
+        end
+        raresFrame = BuildRaresFrame()
         raresFrame:Show()
         MR.raresFrame = raresFrame
         if self.SetManagedWindowOpen then self:SetManagedWindowOpen("raresOpen", true) end
